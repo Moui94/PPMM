@@ -1,0 +1,77 @@
+/* ── Layout ─────────────────────────────────────────── */
+body { background: #f4f6f9; font-size: .93rem; }
+.navbar-brand { font-weight: 700; letter-spacing: .5px; }
+
+/* ── Sidebar ────────────────────────────────────────── */
+.sidebar { min-height: calc(100vh - 56px); background: #1e2a38; }
+.sidebar .nav-link {
+  color: #adb5bd; padding: .45rem 1rem;
+  border-radius: 6px; cursor: pointer; display: block;
+  text-decoration: none; transition: background .15s;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active { background: #2d3f56; color: #fff; }
+.sidebar .nav-section {
+  color: #6c757d; font-size: .75rem; text-transform: uppercase;
+  letter-spacing: .08em; padding: .6rem 1rem .2rem;
+}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card { border: none; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card-header { font-weight: 600; }
+
+/* ── Priorität-Badges ───────────────────────────────── */
+.badge-prio-1 { background: #dc3545 !important; }
+.badge-prio-2 { background: #fd7e14 !important; }
+.badge-prio-3 { background: #6c757d !important; }
+
+/* ── AG-Zeilenfärbung ───────────────────────────────── */
+.ag-done   { background: #d1f0db; }
+.ag-active { background: #fff3cd; }
+.ag-open   { background: #f8f9fa; }
+.ag-row td { vertical-align: middle; font-size: .88rem; }
+
+/* ── Abweichung ─────────────────────────────────────── */
+.abw-pos { color: #dc3545; font-weight: 600; }
+.abw-neg { color: #198754; font-weight: 600; }
+.abw-null { color: #6c757d; }
+
+/* ── Tabellen ───────────────────────────────────────── */
+.table-orders th { white-space: nowrap; }
+.table-sm td, .table-sm th { padding: .35rem .6rem; }
+
+/* ── KPI-Kacheln ────────────────────────────────────── */
+.kpi-card { transition: transform .15s; cursor: default; }
+.kpi-card:hover { transform: translateY(-2px); }
+
+/* ── Maschinen-Kacheln (Fräsplanung) ────────────────── */
+.machine-card {
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: .75rem;
+  min-height: 120px;
+}
+.machine-card.busy  { border-color: #fd7e14; background: #fff8f0; }
+.machine-card.free  { border-color: #198754; background: #f0fff4; }
+.slot-item {
+  font-size: .8rem; padding: .25rem .5rem;
+  border-radius: 4px; margin-bottom: .2rem;
+}
+.slot-active  { background: #fff3cd; border-left: 3px solid #fd7e14; }
+.slot-planned { background: #e3f0ff; border-left: 3px solid #0d6efd; }
+.slot-done    { background: #d1f0db; border-left: 3px solid #198754; }
+
+/* ── Loading Spinner ────────────────────────────────── */
+.spinner-overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+
+/* ── Pareto-Balken ──────────────────────────────────── */
+.pareto-bar { height: 20px; border-radius: 3px; background: #0d6efd; }
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none !important; }
+}
