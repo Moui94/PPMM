@@ -9,7 +9,7 @@ import hashlib
 import os
 from contextlib import contextmanager
 
-DATABASE = os.environ.get("DB_PATH", "production.db")
+DATABASE = os.environ.get("DB_PATH", "produktions.db")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

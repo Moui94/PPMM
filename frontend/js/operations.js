@@ -1,8 +1,8 @@
 /**
- * operations.js – AG bearbeiten + Rückmeldungsformular.
- * Stückzahl wird automatisch vom Vorgänger-AG übernommen.
+ * operations.js — AG bearbeiten + Rückmeldungsformular.
  */
 
+// ── AG bearbeiten ─────────────────────────────────────────────────────────────
 async function renderOpEdit(params = {}) {
   const { opId, paNr } = params;
   const el = document.getElementById("app-content");
@@ -11,17 +11,31 @@ async function renderOpEdit(params = {}) {
   try { op = await Api.operations.get(opId); }
   catch (e) { el.innerHTML = alertHtml(e.message); return; }
 
-  // Kapazitäts-Optionen
-  const kapOptionen = (op.kapazitaet_optionen || []).map(k =>
-    `<option value="${k}" ${op.kapazitaet === k ? "selected" : ""}>${k}</option>`
-  ).join("");
-
-  // Maschinen-Optionen (nur AG 1–3)
-  const maschinenOpt = op.ist_fraes_ag
-    ? (op.maschinen_liste || []).map(([nr, label]) =>
-        `<option value="${nr}" ${op.maschine === nr ? "selected" : ""}>${nr} – ${label}</option>`
-      ).join("")
-    : "";
+  // Maschinen-Dropdown (Fräs-AG) oder Kapazitäts-Dropdown (andere AG)
+  let kapazitaetHtml = "";
+  if (op.ist_fraes_ag && op.maschinen_liste.length) {
+    const opts = op.maschinen_liste.map(([nr, label]) =>
+      `<option value="${nr}" ${op.maschine === nr ? "selected" : ""}>${nr} – ${label}</option>`
+    ).join("");
+    kapazitaetHtml = `
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Maschine (Haas)</label>
+        <select id="op-maschine" class="form-select">
+          <option value="">— wählen —</option>${opts}
+        </select>
+      </div>`;
+  } else if (op.kapazitaet_optionen.length) {
+    const opts = op.kapazitaet_optionen.map(k =>
+      `<option value="${k}" ${op.kapazitaet === k ? "selected" : ""}>${k}</option>`
+    ).join("");
+    kapazitaetHtml = `
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Kapazität</label>
+        <select id="op-kapazitaet" class="form-select">
+          <option value="">—</option>${opts}
+        </select>
+      </div>`;
+  }
 
   el.innerHTML = `
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -44,36 +58,19 @@ async function renderOpEdit(params = {}) {
             <input type="date" id="op-start_soll" class="form-control"
                    value="${op.start_soll}">
           </div>
-          <div class="col-md-3">
-            <label class="form-label fw-bold">Ende Soll <small class="text-muted">(berechnet)</small></label>
-            <input type="text" class="form-control bg-light" value="${op.ende_soll_fmt}" readonly>
-          </div>
-
-          ${op.ist_fraes_ag ? `
-          <div class="col-md-3">
-            <label class="form-label fw-bold">Maschine (Haas)</label>
-            <select id="op-maschine" class="form-select">
-              <option value="">— wählen —</option>${maschinenOpt}
-            </select>
-          </div>` : `
-          <div class="col-md-3">
-            <label class="form-label fw-bold">Kapazität</label>
-            <select id="op-kapazitaet" class="form-select">
-              <option value="">—</option>${kapOptionen}
-            </select>
-          </div>`}
-
           <div class="col-md-2">
             <label class="form-label fw-bold">Status</label>
             <select id="op-status" class="form-select">
               ${["offen","laufend","abgeschlossen"].map(s =>
-                `<option value="${s}" ${op.status===s?"selected":""}>${cap(s)}</option>`).join("")}
+                `<option value="${s}" ${op.status===s?"selected":""}>${cap(s)}</option>`
+              ).join("")}
             </select>
           </div>
+          ${kapazitaetHtml}
           <div class="col-md-4">
             <label class="form-label fw-bold">Bemerkung</label>
             <input type="text" id="op-bemerkung" class="form-control"
-                   value="${esc(op.bemerkung??'')}">
+                   value="${esc(op.bemerkung ?? '')}">
           </div>
         </div>
         <div class="d-flex gap-2 mt-3">
@@ -92,21 +89,15 @@ async function saveOp(opId, paNr, isFraesAg) {
   const alert = document.getElementById("op-alert");
   btn.disabled = true;
   alert.className = "d-none";
-
-  const maschineEl   = document.getElementById("op-maschine");
-  const kapazitaetEl = document.getElementById("op-kapazitaet");
-
   const data = {
-    solldauer_tage: parseFloat(document.getElementById("op-solldauer").value),
-    start_soll:     document.getElementById("op-start_soll").value || null,
-    maschine:       isFraesAg ? (maschineEl?.value || null) : null,
-    kapazitaet:     !isFraesAg ? (kapazitaetEl?.value || null) : null,
-    status:         document.getElementById("op-status").value,
-    bemerkung:      document.getElementById("op-bemerkung").value.trim() || null,
+    solldauer_tage: parseFloat(document.getElementById("op-solldauer")?.value),
+    start_soll:     document.getElementById("op-start_soll")?.value || null,
+    maschine:       isFraesAg ? (document.getElementById("op-maschine")?.value || null) : null,
+    kapazitaet:     !isFraesAg ? (document.getElementById("op-kapazitaet")?.value || null) : null,
+    status:         document.getElementById("op-status")?.value,
+    bemerkung:      document.getElementById("op-bemerkung")?.value.trim() || null,
   };
-  // Leere Felder rausfiltern
   Object.keys(data).forEach(k => { if (data[k] === null) delete data[k]; });
-
   try {
     await Api.operations.update(opId, data);
     showToast("Arbeitsgang gespeichert.", "success");
@@ -129,16 +120,33 @@ async function renderFeedback(params = {}) {
     catalog = await Api.quality.catalog(op.ag_nr);
   } catch (e) { el.innerHTML = alertHtml(e.message); return; }
 
-  // Stückzahl-Vorschlag: Vorgänger-Menge gut oder Auftragsmenge
   const mengeVorschlag = op.vorgaenger_menge_gut ?? op.auftrag_menge ?? 0;
   const vorschlagHinweis = op.vorgaenger_menge_gut != null
-    ? `<small class="text-success ms-1"><i class="bi bi-arrow-left-circle"></i>
-         übernommen von Vorgänger-AG (${op.vorgaenger_menge_gut} Stk.)</small>`
+    ? `<small class="text-success ms-1">
+         <i class="bi bi-arrow-left-circle"></i> übernommen von Vorgänger-AG (${op.vorgaenger_menge_gut} Stk.)</small>`
     : `<small class="text-muted ms-1">Auftragsmenge</small>`;
 
-  const catalogOptions = Object.entries(catalog).map(([code, info]) =>
-    `<option value="${code}">[${info.kategorie}] ${code} – ${esc(info.bezeichnung)}</option>`
-  ).join("");
+  // Maschinen-Dropdown für Rückmeldung (Fräs-AG)
+  let maschinenHtml = "";
+  if (op.ist_fraes_ag && op.maschinen_liste.length) {
+    const opts = op.maschinen_liste.map(([nr, label]) =>
+      `<option value="${nr}" ${op.maschine === nr ? "selected" : ""}>${nr} – ${label}</option>`
+    ).join("");
+    maschinenHtml = `
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Maschine (Haas) <span class="text-danger">*</span></label>
+        <select id="fb-maschine" class="form-select">
+          <option value="">— wählen —</option>${opts}
+        </select>
+      </div>`;
+  } else {
+    maschinenHtml = `
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Maschine</label>
+        <input type="text" id="fb-maschine" class="form-control"
+               value="${esc(op.maschine ?? '')}">
+      </div>`;
+  }
 
   el.innerHTML = `
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -163,8 +171,7 @@ async function renderFeedback(params = {}) {
         <div class="row g-3">
           <div class="col-md-3">
             <label class="form-label fw-bold">
-              Eingabemenge <span class="text-danger">*</span>
-              ${vorschlagHinweis}
+              Eingabemenge <span class="text-danger">*</span> ${vorschlagHinweis}
             </label>
             <input type="number" id="fb-input" class="form-control"
                    value="${mengeVorschlag}" min="1" oninput="calcMengen()">
@@ -180,9 +187,8 @@ async function renderFeedback(params = {}) {
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold">&nbsp;</label>
-            <div id="fb-check" class="form-control bg-light text-center" style="cursor:default">—</div>
+            <div id="fb-check" class="form-control bg-light text-center">—</div>
           </div>
-
           <div class="col-md-3">
             <label class="form-label fw-bold">Start Ist</label>
             <input type="datetime-local" id="fb-start_ist" class="form-control">
@@ -191,28 +197,21 @@ async function renderFeedback(params = {}) {
             <label class="form-label fw-bold">Ende Ist</label>
             <input type="datetime-local" id="fb-ende_ist" class="form-control">
           </div>
-          <div class="col-md-3">
-            <label class="form-label fw-bold">Maschine</label>
-            <input type="text" id="fb-maschine" class="form-control"
-                   value="${esc(op.maschine??'')}">
-          </div>
+          ${maschinenHtml}
           <div class="col-md-3">
             <label class="form-label fw-bold">Bemerkung</label>
             <input type="text" id="fb-bemerkung" class="form-control">
           </div>
         </div>
-
         <div class="mt-3">
           <label class="form-label fw-bold">Fehlercodes (bei Ausschuss > 0)</label>
           <div id="fehler-liste"></div>
-          <button class="btn btn-sm btn-outline-secondary mt-1"
-                  onclick="addFehlerRow()">
+          <button class="btn btn-sm btn-outline-secondary mt-1" onclick="addFehlerRow()">
             <i class="bi bi-plus me-1"></i>Fehlercode hinzufügen</button>
         </div>
-
         <div class="d-flex gap-2 mt-3">
           <button class="btn btn-primary" id="fb-save-btn"
-                  onclick="saveFeedback(${opId},'${esc(op.pa_nr)}')">
+                  onclick="saveFeedback(${opId},'${esc(op.pa_nr)}',${op.ist_fraes_ag})">
             <i class="bi bi-save me-1"></i>Rückmeldung speichern</button>
           <button class="btn btn-outline-secondary"
             onclick="navigate('order',{paNr:'${esc(op.pa_nr)}'})">Abbrechen</button>
@@ -220,7 +219,6 @@ async function renderFeedback(params = {}) {
       </div>
     </div>`;
 
-  // Catalog für addFehlerRow speichern
   window._currentCatalog = catalog;
   calcMengen();
 }
@@ -229,10 +227,11 @@ function calcMengen() {
   const inp = parseInt(document.getElementById("fb-input")?.value)     || 0;
   const aus = parseInt(document.getElementById("fb-ausschuss")?.value) || 0;
   const gut = Math.max(0, inp - aus);
-  const chk = document.getElementById("fb-check");
-  if (document.getElementById("fb-gut")) document.getElementById("fb-gut").value = gut;
+  const gutEl = document.getElementById("fb-gut");
+  const chk   = document.getElementById("fb-check");
+  if (gutEl) gutEl.value = gut;
   if (!chk) return;
-  if (aus + gut !== inp && inp > 0) {
+  if (inp > 0 && (gut + aus) !== inp) {
     chk.style.background = "#f8d7da";
     chk.textContent = `⚠️ ${gut} + ${aus} ≠ ${inp}`;
   } else {
@@ -242,11 +241,10 @@ function calcMengen() {
 }
 
 function addFehlerRow() {
-  const catalog   = window._currentCatalog || {};
-  const options   = Object.entries(catalog).map(([code, info]) =>
+  const catalog  = window._currentCatalog || {};
+  const options  = Object.entries(catalog).map(([code, info]) =>
     `<option value="${code}">[${info.kategorie}] ${code} – ${esc(info.bezeichnung)}</option>`
   ).join("");
-  const container = document.getElementById("fehler-liste");
   const div = document.createElement("div");
   div.className = "d-flex gap-2 mb-1 align-items-center fehler-row";
   div.innerHTML = `
@@ -258,38 +256,42 @@ function addFehlerRow() {
     <button class="btn btn-sm btn-outline-danger py-0"
             onclick="this.parentElement.remove()">
       <i class="bi bi-trash"></i></button>`;
-  container.appendChild(div);
+  document.getElementById("fehler-liste").appendChild(div);
 }
 
-async function saveFeedback(opId, paNr) {
+async function saveFeedback(opId, paNr, isFraesAg) {
   const btn   = document.getElementById("fb-save-btn");
   const alert = document.getElementById("fb-alert");
   btn.disabled = true;
   alert.className = "d-none";
 
+  // Maschine: bei Fräs-AG aus Select, sonst aus Text-Input
+  let maschine;
+  if (isFraesAg) {
+    const sel = document.getElementById("fb-maschine");
+    maschine  = sel?.value || null;
+  } else {
+    maschine = document.getElementById("fb-maschine")?.value.trim() || null;
+  }
+
   const fehler = [...document.querySelectorAll(".fehler-row")]
     .map(row => ({
       code:  row.querySelector(".fehler-code").value,
       menge: parseInt(row.querySelector(".fehler-menge").value) || 1,
-    }))
-    .filter(f => f.code);
+    })).filter(f => f.code);
 
   const data = {
     menge_input:     parseInt(document.getElementById("fb-input").value)     || 0,
     menge_ausschuss: parseInt(document.getElementById("fb-ausschuss").value) || 0,
-    start_ist:  document.getElementById("fb-start_ist").value || null,
-    ende_ist:   document.getElementById("fb-ende_ist").value  || null,
-    maschine:   document.getElementById("fb-maschine").value.trim()  || null,
-    bemerkung:  document.getElementById("fb-bemerkung").value.trim() || null,
+    start_ist:  document.getElementById("fb-start_ist")?.value || null,
+    ende_ist:   document.getElementById("fb-ende_ist")?.value  || null,
+    maschine, bemerkung: document.getElementById("fb-bemerkung")?.value.trim() || null,
     fehler,
   };
 
   try {
     const result = await Api.operations.feedback(opId, data);
-    showToast(
-      `✅ Gespeichert — Gut: ${result.menge_gut} | Ausschuss: ${result.menge_ausschuss}`,
-      "success"
-    );
+    showToast(`✅ Gut: ${result.menge_gut}  Ausschuss: ${result.menge_ausschuss}`, "success");
     navigate("order", { paNr });
   } catch (e) {
     alert.className   = "alert alert-danger py-2";
