@@ -74,7 +74,7 @@ async function renderOrder(params = {}) {
           ${detailItem("Endtermin Soll",  `<strong>${order.endtermin_soll_fmt}</strong>`)}
           ${detailItem("Lieferung Kunde", order.auslieferung_fmt)}
           ${detailItem("Abweichung",      `<span class="${abwClass}">${abwStr}</span>`)}
-          ${detailItem("Haas-Nr",         esc(order.haas_nr||"—"))}
+
           ${detailItem("Status",          `<span class="badge bg-primary">${order.status}</span>`)}
         </div>
         ${order.spezielles ? `<div class="mt-2"><span class="badge bg-warning text-dark">
@@ -246,11 +246,7 @@ async function renderOrderForm(order = null) {
             </select>
           </div>
 
-          <div class="col-md-2">
-            <label class="form-label fw-bold">Haas-Nr</label>
-            <input type="text" id="f-haas_nr" class="form-control"
-                   value="${esc(order?.haas_nr??'')}">
-          </div>
+          
 
           <div class="col-md-3">
             <label class="form-label fw-bold">Spezielles</label>
@@ -317,6 +313,7 @@ function onArtChange() {
 
 // Artikel-Wechsel → Ceramaret-Toggle anzeigen/ausblenden
 function onArtikelChange() {
+  _updateLiefertermin();
   const sel    = document.getElementById("f-artikel");
   const opt    = sel?.options[sel.selectedIndex];
   const moegl  = opt?.dataset?.ceramaret === "true";
@@ -383,6 +380,87 @@ function updateAgVorschau() {
     return dauer ? `${ag}(${dauer})` : ag;
   }).join(" → ");
   vorschau.style.display = "";
+
+  // Liefertermin-Berechnung
+  _updateLiefertermin();
+}
+
+function _addWorkdays(startDate, days) {
+  let d = new Date(startDate);
+  let added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+  }
+  return d;
+}
+
+function _formatDateCH(d) {
+  return d.toLocaleDateString("de-CH", {day:"2-digit", month:"2-digit", year:"numeric"});
+}
+
+function _updateLiefertermin() {
+  const liefEl = document.getElementById("liefertermin-hinweis");
+  if (!liefEl) return;
+
+  const startVal = document.getElementById("f-start_datum")?.value;
+  const art      = document.getElementById("f-art")?.value;
+  const artikel  = document.getElementById("f-artikel")?.value;
+  const menge    = parseInt(document.getElementById("f-menge")?.value) || 0;
+
+  if (!startVal || !artikel || !menge) {
+    liefEl.style.display = "none";
+    return;
+  }
+
+  const pInfo = window._produkteCache?.[artikel];
+  if (!pInfo) { liefEl.style.display = "none"; return; }
+
+  const ceramaret = document.getElementById("f-ceramaret")?.checked || false;
+  const seq       = ceramaret ? pInfo.ag_sequenz_ceramaret : pInfo.ag_sequenz;
+  const ausbrgMap = pInfo.ausbringung_pro_ag || {};
+
+  // Solldauern pro AG berechnen
+  let current = new Date(startVal);
+  // Auf Arbeitstag schieben
+  while (current.getDay() === 0 || current.getDay() === 6) {
+    current.setDate(current.getDate() + 1);
+  }
+
+  // Stamm-Solldauern (AG4+)
+  const SOLLDAUERN = {4:1, 5:1, 6:5, 7:2, 8:2, 9:1, 10:1, 11:2, 12:1, 14:1};
+
+  for (const agNr of seq) {
+    let dauer;
+    if (agNr <= 3) {
+      const ausbrg = ausbrgMap[agNr] || 26;
+      dauer = Math.ceil(menge / ausbrg);
+    } else {
+      dauer = SOLLDAUERN[agNr] || 1;
+    }
+    current = _addWorkdays(current, dauer);
+  }
+
+  // Endtermin Produktion = current
+  let endterminProd = new Date(current);
+
+  // Implantat: +2 Wochen (10 Arbeitstage)
+  let endterminLief = new Date(endterminProd);
+  let hinweisExtra  = "";
+  if (art === "I") {
+    endterminLief = _addWorkdays(endterminLief, 10);
+    hinweisExtra  = ' <span class="text-muted">(+2 Wochen für Implantat-Nachbearbeitung)</span>';
+  }
+
+  liefEl.innerHTML = `
+    <i class="bi bi-truck me-1"></i>
+    <strong>Möglicher Liefertermin: ${_formatDateCH(endterminLief)}</strong>
+    ${hinweisExtra}
+    <br><small class="text-muted">
+      <i class="bi bi-info-circle me-1"></i>
+      Datum inklusive Verpackung bei Frühstart ${_formatDateCH(new Date(startVal))}
+    </small>`;
+  liefEl.style.display = "block";
 }
 
 async function saveOrder(mode) {
@@ -396,7 +474,6 @@ async function saveOrder(mode) {
     prioritaet:         parseInt(document.getElementById("f-prioritaet")?.value),
     auslieferung_kunde: document.getElementById("f-auslieferung_kunde")?.value || null,
     status:             document.getElementById("f-status")?.value,
-    haas_nr:            document.getElementById("f-haas_nr")?.value?.trim()     || null,
     spezielles:         document.getElementById("f-spezielles")?.value?.trim()  || null,
     bemerkung:          document.getElementById("f-bemerkung")?.value?.trim()   || null,
   };

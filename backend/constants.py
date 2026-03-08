@@ -27,11 +27,11 @@ AG_KAPAZITAET = {
     4:  {"typ": "fix", "wert": "Manuell"},
     5:  {"typ": "fix", "wert": "Manuell"},
     6:  {"typ": "fix", "wert": "Manuell"},
-    7:  {"typ": "fix", "wert": "Manuell"},
+    7:  {"typ": "fix", "wert": "Extern"},
     8:  {"typ": "fix", "wert": "Manuell"},
     9:  {"typ": "fix", "wert": "Manuell"},
     10: {"typ": "fix", "wert": "Manuell"},
-    11: {"typ": "fix", "wert": "Manuell"},
+    11: {"typ": "fix", "wert": "Extern"},
     12: {"typ": "fix", "wert": "Manuell"},
     14: {"typ": "fix", "wert": "Manuell"},
 }
