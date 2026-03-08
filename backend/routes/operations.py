@@ -13,7 +13,7 @@ from backend.models.order import update_order_endtermin
 from backend.services.date_calc import fmt_date_ch
 from backend.constants import (
     get_ag_kapazitaet_config, get_maschinen_fuer_ag,
-    get_kapazitaet_optionen, ist_fraes_ag,
+    get_kapazitaet_optionen, ist_fraes_ag, get_kapazitaet_fix,
 )
 from ._helpers import success, error, login_required, role_required
 
@@ -48,7 +48,8 @@ def _op_detail(conn, op) -> dict:
         "ist_fraes_ag":         fraes,
         "kap_typ":              kap_cfg.get("typ"),
         "maschinen_liste":      get_maschinen_fuer_ag(ag_nr),   # [(nr, label), ...]
-        "kapazitaet_optionen":  get_kapazitaet_optionen(ag_nr), # ["1 MA", ...]
+        "kapazitaet_optionen":  get_kapazitaet_optionen(ag_nr),
+        "kapazitaet_fix":       kap_cfg.get("wert") if kap_cfg.get("typ") == "fix" else None,
     }
 
 

@@ -14,6 +14,7 @@ async function renderOpEdit(params = {}) {
   // Maschinen-Dropdown (Fräs-AG) oder Kapazitäts-Dropdown (andere AG)
   let kapazitaetHtml = "";
   if (op.ist_fraes_ag && op.maschinen_liste.length) {
+    // AG01–03: Maschinen-Dropdown
     const opts = op.maschinen_liste.map(([nr, label]) =>
       `<option value="${nr}" ${op.maschine === nr ? "selected" : ""}>${nr} – ${label}</option>`
     ).join("");
@@ -24,16 +25,14 @@ async function renderOpEdit(params = {}) {
           <option value="">— wählen —</option>${opts}
         </select>
       </div>`;
-  } else if (op.kapazitaet_optionen.length) {
-    const opts = op.kapazitaet_optionen.map(k =>
-      `<option value="${k}" ${op.kapazitaet === k ? "selected" : ""}>${k}</option>`
-    ).join("");
+  } else if (op.kapazitaet_fix) {
+    // AG04–14: fix, nur anzeigen
     kapazitaetHtml = `
       <div class="col-md-3">
         <label class="form-label fw-bold">Kapazität</label>
-        <select id="op-kapazitaet" class="form-select">
-          <option value="">—</option>${opts}
-        </select>
+        <input type="text" class="form-control bg-light"
+               value="${op.kapazitaet_fix}" readonly
+               title="Kapazität ist fix hinterlegt">
       </div>`;
   }
 
@@ -138,6 +137,14 @@ async function renderFeedback(params = {}) {
         <select id="fb-maschine" class="form-select">
           <option value="">— wählen —</option>${opts}
         </select>
+      </div>`;
+  } else if (op.kapazitaet_fix) {
+    // fix-AG: Kapazität schreibgeschützt anzeigen
+    maschinenHtml = `
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Kapazität</label>
+        <input type="text" class="form-control bg-light"
+               value="${op.kapazitaet_fix}" readonly>
       </div>`;
   } else {
     maschinenHtml = `

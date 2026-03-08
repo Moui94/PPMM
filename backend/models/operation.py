@@ -80,15 +80,20 @@ def create_operations_for_order(
     from backend.services.date_calc import calc_ag_termine
     termine, endtermin = calc_ag_termine(art, pa_start, solldauern_override, ceramaret)
     for t in termine:
+        from backend.constants import get_ag_kapazitaet_config
+        kap_cfg   = get_ag_kapazitaet_config(t.ag_nr)
+        kap_fix   = kap_cfg.get("wert") if kap_cfg.get("typ") == "fix" else None
         conn.execute("""
             INSERT INTO order_operations
-              (order_id, ag_nr, bezeichnung, solldauer_tage, start_soll, ende_soll, status)
-            VALUES (?,?,?,?,?,?,'offen')
+              (order_id, ag_nr, bezeichnung, solldauer_tage, start_soll, ende_soll,
+               status, kapazitaet)
+            VALUES (?,?,?,?,?,?,'offen',?)
         """, (
             order_id, t.ag_nr, t.bezeichnung,
             t.solldauer_tage,
             t.start_soll.isoformat(),
             t.ende_soll.isoformat(),
+            kap_fix,
         ))
     return endtermin
 

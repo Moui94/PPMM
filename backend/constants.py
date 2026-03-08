@@ -2,103 +2,90 @@
 backend/constants.py
 """
 
-# ── Maschinen-Stammdaten ─────────────────────────────────────────────────────
-# Gruppe 2000 = Haas Fräsmaschinen
 MASCHINEN = {
-    "2001": "Haas 01",
-    "2002": "Haas 02",
-    "2003": "Haas 03",
-    "2004": "Haas 04",
-    "2005": "Haas 05",
-    "2006": "Haas 06",
-    "2007": "Haas 07",
-    "2008": "Haas 08",
-    "2009": "Haas 09",
-    "2010": "Haas 10",
-    "2011": "Haas 11",
-    "2012": "Haas 12",
-    "2013": "Haas 13",
-    "2014": "Haas 14",
+    "2001": "Haas 01", "2002": "Haas 02", "2003": "Haas 03",
+    "2004": "Haas 04", "2005": "Haas 05", "2006": "Haas 06",
+    "2007": "Haas 07", "2008": "Haas 08", "2009": "Haas 09",
+    "2010": "Haas 10", "2011": "Haas 11", "2012": "Haas 12",
+    "2013": "Haas 13", "2014": "Haas 14",
 }
 
 MASCHINENGRUPPEN = {
-    "2000": {  # Haas Fräsmaschinen 2001–2014
-        nr: label for nr, label in MASCHINEN.items()
-    },
+    "2000": {nr: label for nr, label in MASCHINEN.items()},
 }
 
 def get_maschinen_label(nr: str) -> str:
     return MASCHINEN.get(str(nr), nr)
 
-# ── Kapazitäten / Maschinen pro AG ──────────────────────────────────────────
-# "gruppe" → Dropdown aus MASCHINENGRUPPEN
-# "optionen" → freie Auswahl-Liste (für nicht-Fräs-AGs)
+# ── Kapazitäten pro AG ────────────────────────────────────────────────────────
+# typ "maschine" → Dropdown Haas 01–14
+# typ "fix"      → automatisch eingetragen, kein Eingabefeld
 AG_KAPAZITAET = {
     1:  {"typ": "maschine", "gruppe": "2000"},
     2:  {"typ": "maschine", "gruppe": "2000"},
     3:  {"typ": "maschine", "gruppe": "2000"},
-    4:  {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    5:  {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    6:  {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    7:  {"typ": "optionen", "optionen": ["Standard", "Express"]},
-    8:  {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    9:  {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    10: {"typ": "optionen", "optionen": ["1 MA", "2 MA"]},
-    11: {"typ": "optionen", "optionen": ["Standard", "Express"]},
-    12: {"typ": "optionen", "optionen": ["Standard", "Express"]},
-    13: {"typ": "optionen", "optionen": ["1 MA"]},
-    14: {"typ": "optionen", "optionen": ["1 MA"]},
+    4:  {"typ": "fix", "wert": "Manuell"},
+    5:  {"typ": "fix", "wert": "Manuell"},
+    6:  {"typ": "fix", "wert": "Manuell"},
+    7:  {"typ": "fix", "wert": "Extern"},
+    8:  {"typ": "fix", "wert": "Manuell"},
+    9:  {"typ": "fix", "wert": "Manuell"},
+    10: {"typ": "fix", "wert": "Manuell"},
+    11: {"typ": "fix", "wert": "Extern"},
+    12: {"typ": "fix", "wert": "Manuell"},
+    13: {"typ": "fix", "wert": "Manuell"},
+    14: {"typ": "fix", "wert": "Manuell"},
 }
 
 def get_ag_kapazitaet_config(ag_nr: int) -> dict:
-    """Gibt Kapazitäts-Konfiguration für einen AG zurück."""
-    return AG_KAPAZITAET.get(ag_nr, {"typ": "optionen", "optionen": []})
+    return AG_KAPAZITAET.get(ag_nr, {"typ": "fix", "wert": "—"})
 
-def get_maschinen_fuer_ag(ag_nr: int) -> list[tuple]:
-    """Gibt [(nr, label), ...] für Fräs-AGs zurück, sonst []."""
+def get_maschinen_fuer_ag(ag_nr: int) -> list:
     cfg = AG_KAPAZITAET.get(ag_nr, {})
     if cfg.get("typ") == "maschine":
         gruppe = MASCHINENGRUPPEN.get(cfg["gruppe"], {})
         return sorted(gruppe.items(), key=lambda x: int(x[0]))
     return []
 
-def get_kapazitaet_optionen(ag_nr: int) -> list[str]:
+def get_kapazitaet_fix(ag_nr: int) -> str | None:
     cfg = AG_KAPAZITAET.get(ag_nr, {})
-    if cfg.get("typ") == "optionen":
-        return cfg.get("optionen", [])
-    return []
+    if cfg.get("typ") == "fix":
+        return cfg.get("wert", "—")
+    return None
+
+def get_kapazitaet_optionen(ag_nr: int) -> list:
+    return []  # nicht mehr verwendet
 
 def ist_fraes_ag(ag_nr: int) -> bool:
     return AG_KAPAZITAET.get(ag_nr, {}).get("typ") == "maschine"
 
 # ── Arbeitsgänge ──────────────────────────────────────────────────────────────
 ARBEITSGAENGE = {
-    1:  {"bezeichnung": "Fräsen 1. Op",           "solldauer_tage": 2},
-    2:  {"bezeichnung": "Fräsen 2. Op",            "solldauer_tage": 2},
-    3:  {"bezeichnung": "Fräsen 3. Op",            "solldauer_tage": 2},
-    4:  {"bezeichnung": "Entgraten / Waschen",     "solldauer_tage": 1},
-    5:  {"bezeichnung": "Sandstrahlen",            "solldauer_tage": 1},
-    6:  {"bezeichnung": "Massprüfung",             "solldauer_tage": 1},
-    7:  {"bezeichnung": "Eloxieren",               "solldauer_tage": 2},
-    8:  {"bezeichnung": "Laserbeschriften",        "solldauer_tage": 1},
-    9:  {"bezeichnung": "Endkontrolle",            "solldauer_tage": 1},
-    10: {"bezeichnung": "Verpacken",               "solldauer_tage": 1},
-    11: {"bezeichnung": "Reinigung / Sterilisation","solldauer_tage": 2},
-    12: {"bezeichnung": "Zertifizierung",          "solldauer_tage": 1},
-    13: {"bezeichnung": "Versand vorbereiten",     "solldauer_tage": 1},
-    14: {"bezeichnung": "Auslieferung",            "solldauer_tage": 1},
+    1:  {"bezeichnung": "Fräsen AG1",                               "solldauer_tage": 2},
+    2:  {"bezeichnung": "Fräsen AG2",                               "solldauer_tage": 2},
+    3:  {"bezeichnung": "Fräsen AG3",                               "solldauer_tage": 2},
+    4:  {"bezeichnung": "US Vorreinigen Elma Sonic",                "solldauer_tage": 1},
+    5:  {"bezeichnung": "Optische Prüfung",                         "solldauer_tage": 1},
+    6:  {"bezeichnung": "Massprüfung (messen)",                     "solldauer_tage": 5},
+    7:  {"bezeichnung": "Sandstrahlen",                             "solldauer_tage": 2},
+    8:  {"bezeichnung": "Säureätzen",                               "solldauer_tage": 2},
+    9:  {"bezeichnung": "Säurereinigung (Oberflächenfinish)",       "solldauer_tage": 1},
+    10: {"bezeichnung": "Neutralisieren /Vorreinigen Elma Sonic",   "solldauer_tage": 1},
+    11: {"bezeichnung": "Optische und Funktionale Prüfung",         "solldauer_tage": 2},
+    12: {"bezeichnung": "Endreinigung Elma Solvex",                 "solldauer_tage": 1},
+    14: {"bezeichnung": "Vakuumverpackungen",                       "solldauer_tage": 1},
 }
 
 AG_SEQUENZ = {
-    "A": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-    "I": [1, 2, 3, 4, 5, 6,    8, 9, 10, 11, 12, 13, 14],
+    "A": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14],
+    "I": [1, 2, 3, 4, 5, 6,    8, 9, 10, 11, 12, 14],
 }
 AG_SEQUENZ_CERAMARET = {
-    "A": [   2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-    "I": [   2, 3, 4, 5, 6,    8, 9, 10, 11, 12, 13, 14],
+    "A": [   2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14],
+    "I": [   2, 3, 4, 5, 6,    8, 9, 10, 11, 12, 14],
 }
 
-def get_ag_sequenz(art: str, ceramaret: bool = False) -> list[int]:
+def get_ag_sequenz(art: str, ceramaret: bool = False) -> list:
     if ceramaret:
         return AG_SEQUENZ_CERAMARET.get(art, AG_SEQUENZ_CERAMARET["I"])
     return AG_SEQUENZ.get(art, AG_SEQUENZ["I"])
@@ -106,7 +93,7 @@ def get_ag_sequenz(art: str, ceramaret: bool = False) -> list[int]:
 def get_solldauer(ag_nr: int) -> float:
     return ARBEITSGAENGE.get(ag_nr, {}).get("solldauer_tage", 1)
 
-# ── Produkt-Stammdaten ────────────────────────────────────────────────────────
+# ── Produkte ──────────────────────────────────────────────────────────────────
 PRODUKTE = {
     "RB16501-1": {"art": "A", "ceramaret_moeglich": False},
     "RB16502-1": {"art": "A", "ceramaret_moeglich": False},
@@ -155,7 +142,6 @@ def get_produkte_by_art(art): return sorted(k for k,v in PRODUKTE.items() if v["
 def get_produkt_info(artikel): return PRODUKTE.get(artikel, {})
 def is_ceramaret_moeglich(artikel): return PRODUKTE.get(artikel,{}).get("ceramaret_moeglich", False)
 
-# ── Fehlerkatalog ─────────────────────────────────────────────────────────────
 FEHLERKATALOG = {
     "M01": {"bezeichnung": "Durchmesser zu gross",         "kategorie": "M", "ag": [1,2,3,6]},
     "M02": {"bezeichnung": "Durchmesser zu klein",         "kategorie": "M", "ag": [1,2,3,6]},
