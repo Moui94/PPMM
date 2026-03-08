@@ -155,3 +155,40 @@ def set_operation_status(
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     """, (status, start_ist, ende_ist, maschine, op_id))
+
+
+def recalc_operations_for_order(
+    conn,
+    order_id: int,
+    art: str,
+    pa_start,
+    ceramaret: bool = False,
+    artikel: str = "",
+    menge: int = 0,
+) -> "date":
+    """
+    Berechnet start_soll/ende_soll aller bestehenden AGs neu.
+    Überschreibt NUR die Solldaten — keine neuen Zeilen.
+    Gibt den neuen Endtermin zurück.
+    """
+    from backend.services.date_calc import calc_ag_termine
+    from datetime import date as _date
+    if isinstance(pa_start, str):
+        from backend.services.date_calc import parse_date_safe
+        pa_start = parse_date_safe(pa_start) or _date.today()
+
+    termine, endtermin = calc_ag_termine(
+        art, pa_start, None, ceramaret,
+        artikel=artikel, menge=menge,
+    )
+    for t in termine:
+        conn.execute("""
+            UPDATE order_operations
+               SET start_soll = ?, ende_soll = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE order_id = ? AND ag_nr = ?
+        """, (
+            t.start_soll.isoformat(),
+            t.ende_soll.isoformat(),
+            order_id, t.ag_nr,
+        ))
+    return endtermin

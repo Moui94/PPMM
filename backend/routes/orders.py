@@ -1,3 +1,12 @@
+def _calc_endtermin_ist_for_order(conn, order_id: int) -> str:
+    """Berechnet endtermin_ist aus Ist-Daten der AGs."""
+    from backend.models.operation import get_operations
+    from backend.services.date_calc import calc_endtermin_ist, fmt_date_ch as _fmt
+    ops = [dict(op) for op in get_operations(conn, order_id)]
+    d = calc_endtermin_ist(ops)
+    return _fmt(d) if d else "—"
+
+
 """
 backend/routes/orders.py
 Auftrags-API inkl. Produkt-Dropdown und Ceramaret-Logik.
@@ -11,9 +20,10 @@ from backend.models.order import (
 )
 from backend.models.operation import (
     create_operations_for_order, get_operations, get_operation_progress,
+    recalc_operations_for_order,
 )
 from backend.models.feedback import get_latest_feedback
-from backend.services.date_calc import parse_date_safe, fmt_date_ch
+from backend.services.date_calc import parse_date_safe, fmt_date_ch, calc_endtermin_ist
 from backend.constants import (
     get_kapazitaet_fix, PRODUKTE, get_produkte_by_art, get_produkt_info,
     is_ceramaret_moeglich, AUFTRAG_TYPEN,
@@ -51,6 +61,7 @@ def _order_to_dict(conn, order) -> dict:
         "haas_nr":            order["haas_nr"],
         "endtermin_soll":     str(order["endtermin_soll"] or ""),
         "endtermin_soll_fmt": fmt_date_ch(order["endtermin_soll"]),
+        "endtermin_ist":      _calc_endtermin_ist_for_order(conn, order["id"]),
         "auslieferung_kunde": str(order["auslieferung_kunde"] or ""),
         "auslieferung_fmt":   fmt_date_ch(order["auslieferung_kunde"]),
         "abweichung_tage":    abw,
@@ -241,11 +252,31 @@ def update_order_route(pa_nr):
         try: fields["prioritaet"] = int(fields["prioritaet"])
         except: return error("prioritaet muss 1, 2 oder 3 sein.", 400)
     try:
-        if "pa_start" in data:
-            data["pa_start"] = parse_date_safe(data["pa_start"])
+        pa_start_new = None
+        if "pa_start" in data and data["pa_start"]:
+            pa_start_new = parse_date_safe(data["pa_start"])
+            if pa_start_new:
+                fields["pa_start"] = pa_start_new.isoformat()
         update_order(conn, order["id"], **fields)
         auslieferung = parse_date_safe(data.get("auslieferung_kunde"))
-        update_order_endtermin(conn, order["id"], auslieferung)
+        # Wenn Status auf aktiv und pa_start gesetzt → Solldaten neu berechnen
+        if fields.get("status") == "aktiv" and pa_start_new:
+            endtermin = recalc_operations_for_order(
+                conn, order["id"],
+                art      = order["art"],
+                pa_start = pa_start_new,
+                ceramaret= bool(order["ceramaret"]),
+                artikel  = order["artikel"],
+                menge    = order["menge"],
+            )
+            update_order(conn, order["id"],
+                         endtermin_soll=endtermin.isoformat())
+            if auslieferung:
+                from backend.services.date_calc import calc_abweichung
+                update_order(conn, order["id"],
+                             abweichung_tage=calc_abweichung(endtermin, auslieferung))
+        else:
+            update_order_endtermin(conn, order["id"], auslieferung)
         conn.commit()
     except ValueError as e:
         return error(str(e), 422)

@@ -85,6 +85,12 @@ def update_op(op_id):
     conn = get_db()
     op   = get_operation_by_id(conn, op_id)
     if not op: return error(f"Arbeitsgang {op_id} nicht gefunden.", 404)
+    # Auftrag muss aktiv sein
+    order_row = conn.execute(
+        "SELECT status FROM orders WHERE id = ?", (op["order_id"],)
+    ).fetchone()
+    if not order_row or order_row["status"] != "aktiv":
+        return error("Rückmeldung nur möglich wenn Auftrag aktiv ist.", 403)
     data = request.get_json(silent=True) or {}
     EDITABLE = {"solldauer_tage","start_soll","ende_soll","maschine","kapazitaet","status","bemerkung"}
     fields = {k: v for k,v in data.items() if k in EDITABLE}
@@ -106,6 +112,12 @@ def post_feedback(op_id):
     conn = get_db()
     op   = get_operation_by_id(conn, op_id)
     if not op: return error(f"Arbeitsgang {op_id} nicht gefunden.", 404)
+    # Auftrag muss aktiv sein
+    order_row = conn.execute(
+        "SELECT status FROM orders WHERE id = ?", (op["order_id"],)
+    ).fetchone()
+    if not order_row or order_row["status"] != "aktiv":
+        return error("Rückmeldung nur möglich wenn Auftrag aktiv ist.", 403)
     data = request.get_json(silent=True) or {}
     try:
         menge_input     = int(data.get("menge_input",     0))

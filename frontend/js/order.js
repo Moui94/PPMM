@@ -36,9 +36,14 @@ async function renderOrder(params = {}) {
       <td>${op.ende_ist  ? _isoToCH(op.ende_ist)  : "—"}</td>
       <td>${fbHtml}</td>
       <td>
-        <button class="btn btn-sm btn-outline-primary py-0"
-                onclick="navigate('feedback',{opId:${op.id},paNr:'${paNr}'})">
-          <i class="bi bi-pencil-square"></i></button>${editBtn}
+        ${order.status === 'aktiv' ?
+          `<button class="btn btn-sm btn-outline-primary py-0"
+                  onclick="navigate('feedback',{opId:${op.id},paNr:'${paNr}'})">
+            <i class="bi bi-pencil-square"></i></button>` :
+          `<button class="btn btn-sm btn-outline-secondary py-0" disabled
+                  title="Rückmeldung nur bei aktivem Auftrag möglich">
+            <i class="bi bi-pencil-square"></i></button>`
+        }${editBtn}
       </td>
     </tr>`;
   }).join("");
@@ -73,6 +78,9 @@ async function renderOrder(params = {}) {
           ${detailItem("PA-Start",        order.pa_start_fmt)}
           ${detailItem("PA-Erfasst",      order.pa_erfasst_fmt || order.pa_erfasst || "—")}
           ${detailItem("Endtermin Soll",  `<strong>${order.endtermin_soll_fmt}</strong>`)}
+          ${detailItem("Endtermin Ist",   order.endtermin_ist && order.endtermin_ist !== "—"
+            ? `<strong class="text-${order.endtermin_ist > order.endtermin_soll_fmt ? 'danger' : 'success'}">${order.endtermin_ist}</strong>`
+            : `<span class="text-muted">—</span>`)}
           ${detailItem("Lieferung Kunde", order.auslieferung_fmt)}
           ${detailItem("Abweichung",      `<span class="${abwClass}">${abwStr}</span>`)}
 

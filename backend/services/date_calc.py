@@ -162,3 +162,38 @@ def parse_date_safe(s) -> Optional[date]:
         return date.fromisoformat(str(s)[:10])
     except (ValueError, TypeError):
         return None
+
+
+def calc_endtermin_ist(ops: list) -> "Optional[date]":
+    """
+    Berechnet den voraussichtlichen Endtermin IST:
+    - Letzter AG mit ende_ist → Startpunkt
+    - Alle AGs danach (noch kein ende_ist) → solldauer_tage aufaddieren
+    - Gibt None zurück wenn noch kein ende_ist vorhanden
+    """
+    # Sortiert nach ag_nr
+    sorted_ops = sorted(ops, key=lambda o: o["ag_nr"] if isinstance(o, dict) else o[0])
+
+    # Letzten AG mit ende_ist finden
+    last_ende_ist = None
+    last_idx      = -1
+    for i, op in enumerate(sorted_ops):
+        ei = op["ende_ist"] if isinstance(op, dict) else None
+        if ei:
+            ei_d = parse_date_safe(str(ei)[:10])
+            if ei_d:
+                last_ende_ist = ei_d
+                last_idx      = i
+
+    if last_ende_ist is None:
+        return None  # Noch kein Ist-Datum vorhanden
+
+    # Restliche AGs ohne ende_ist aufaddieren
+    current = last_ende_ist
+    for op in sorted_ops[last_idx + 1:]:
+        ei = op["ende_ist"] if isinstance(op, dict) else None
+        if not ei:
+            dauer = op["solldauer_tage"] if isinstance(op, dict) else 1
+            current = add_workdays(current, dauer or 1)
+
+    return current
