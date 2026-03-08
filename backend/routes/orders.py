@@ -241,6 +241,8 @@ def update_order_route(pa_nr):
         try: fields["prioritaet"] = int(fields["prioritaet"])
         except: return error("prioritaet muss 1, 2 oder 3 sein.", 400)
     try:
+        if "pa_start" in data:
+            data["pa_start"] = parse_date_safe(data["pa_start"])
         update_order(conn, order["id"], **fields)
         auslieferung = parse_date_safe(data.get("auslieferung_kunde"))
         update_order_endtermin(conn, order["id"], auslieferung)

@@ -230,7 +230,29 @@ async function renderOrderForm(order = null) {
           <div class="col-md-3">
             <label class="form-label fw-bold">PA-Start</label>
             <input type="date" id="f-pa_start" class="form-control" onchange="_updateLiefertermin()">
-          </div>` : ""}
+          </div>` : `
+          <div class="col-md-3">
+            <label class="form-label fw-bold">Status</label>
+            <select id="f-status" class="form-select"
+              onchange="document.getElementById('pa-start-edit').style.display=this.value==='aktiv'?'block':'none'">
+              ${order.status === 'geplant' ? `
+                <option value="geplant" selected>Geplant</option>
+                <option value="aktiv">Aktiv</option>
+              ` : order.status === 'aktiv' ? `
+                <option value="aktiv" selected>Aktiv</option>
+                <option value="abgeschlossen">Abgeschlossen</option>
+                <option value="archiviert">Archiviert</option>
+              ` : `
+                <option value="${order.status}" selected>${cap(order.status)}</option>
+              `}
+            </select>
+          </div>
+          <div class="col-md-3" id="pa-start-edit"
+               style="display:${order.status==='geplant'?'block':'none'}">
+            <label class="form-label fw-bold">PA-Start</label>
+            <input type="date" id="f-pa_start" class="form-control"
+                   value="${order.pa_start||''}" onchange="_updateLiefertermin()">
+          </div>`}
 
           <div class="col-md-3">
             <label class="form-label fw-bold">Auslieferung Kunde</label>

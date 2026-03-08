@@ -78,7 +78,7 @@ def create_order(
 def update_order(conn, order_id: int, **fields) -> None:
     ALLOWED = {
         "artikel","ceramaret","spezielles","menge","prioritaet",
-        "status","auslieferung_kunde","haas_nr","bemerkung",
+        "status","pa_start","auslieferung_kunde","haas_nr","bemerkung",
         "bestaetigung_kunde","endtermin_soll","abweichung_tage","menge_produziert",
     }
     invalid = set(fields.keys()) - ALLOWED
