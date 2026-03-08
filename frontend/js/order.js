@@ -127,7 +127,9 @@ async function renderOrderForm(order = null) {
 
   // Produktliste laden
   let produkte = {};
-  try { produkte = await Api.orders.produkte(); }
+  const menge0 = order?.menge || 0;
+  try { produkte = await Api.orders.produkte(null, menge0);
+        window._produkteCache = produkte; }
   catch (e) { el.innerHTML = alertHtml("Produkte konnten nicht geladen werden: " + e.message); return; }
 
   // Dropdown nach Art gruppieren
@@ -211,7 +213,8 @@ async function renderOrderForm(order = null) {
           <div class="col-md-2">
             <label class="form-label fw-bold">Menge <span class="text-danger">*</span></label>
             <input type="number" id="f-menge" class="form-control"
-                   value="${order?.menge??''}" min="1" required>
+                   value="${order?.menge??''}" min="1" required
+                   oninput="updateAgVorschau()">
           </div>
 
           <!-- Priorität -->
@@ -321,6 +324,14 @@ function onArtikelChange() {
   const chk    = document.getElementById("f-ceramaret");
   if (wrap) wrap.style.display = moegl ? "" : "none";
   if (!moegl && chk) chk.checked = false;
+  // Produkte neu laden mit aktueller Menge für korrekte Solldauer
+  const m = parseInt(document.getElementById('f-menge')?.value) || 0;
+  if (m > 0) {
+    Api.orders.produkte(null, m).then(p => {
+      window._produkteCache = p;
+      updateAgVorschau();
+    });
+  }
   onCameraretChange();
   updateAgVorschau();
 }
@@ -339,17 +350,38 @@ function onCameraretChange() {
 function updateAgVorschau() {
   const vorschau = document.getElementById("ag-vorschau");
   const txt      = document.getElementById("ag-vorschau-text");
-  const art      = document.getElementById("f-art")?.value;
   const artikel  = document.getElementById("f-artikel")?.value;
   const ceramaret= document.getElementById("f-ceramaret")?.checked;
-  if (!vorschau || !txt || !art || !artikel) {
+  const menge    = parseInt(document.getElementById("f-menge")?.value) || 0;
+  if (!vorschau || !txt || !artikel) {
     if (vorschau) vorschau.style.display = "none";
     return;
   }
-  const seq_A    = ceramaret ? [2,3,4,5,6,7,8,9,10,11,12,13,14] : [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
-  const seq_I    = ceramaret ? [2,3,4,5,6,8,9,10,11,12,13,14]   : [1,2,3,4,5,6,8,9,10,11,12,13,14];
-  const seq      = art === "A" ? seq_A : seq_I;
-  txt.textContent = seq.map(n => `AG${String(n).padStart(2,'0')}`).join(" → ");
+  const pInfo = window._produkteCache?.[artikel];
+  if (!pInfo) { vorschau.style.display = "none"; return; }
+
+  const seq      = ceramaret ? pInfo.ag_sequenz_ceramaret : pInfo.ag_sequenz;
+  const dauern   = pInfo.fraes_solldauern || {};
+  const ausbrgMap = pInfo.ausbringung_pro_ag || {};
+
+  // Solldauern für Fräs-AGs berechnen (pro AG eigene Ausbringung)
+  const fraesBerechnet = {};
+  if (menge > 0) {
+    for (const agNr of [1,2,3]) {
+      if (seq.includes(agNr)) {
+        const ausbrg = ausbrgMap[agNr] || 26;
+        fraesBerechnet[agNr] = Math.ceil(menge / ausbrg);
+      }
+    }
+  }
+
+  txt.innerHTML = seq.map(n => {
+    const ag  = `AG${String(n).padStart(2,'0')}`;
+    const dauer = n <= 3
+      ? (fraesBerechnet[n] ? `<strong>${fraesBerechnet[n]}T</strong>` : "")
+      : "";
+    return dauer ? `${ag}(${dauer})` : ag;
+  }).join(" → ");
   vorschau.style.display = "";
 }
 

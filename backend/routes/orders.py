@@ -17,6 +17,8 @@ from backend.services.date_calc import parse_date_safe, fmt_date_ch
 from backend.constants import (
     PRODUKTE, get_produkte_by_art, get_produkt_info,
     is_ceramaret_moeglich, AUFTRAG_TYPEN,
+    get_ag_sequenz_fuer_produkt, get_fraes_solldauern,
+    get_ausbringung, AUSBRINGUNG_PRO_TAG, AUSBRINGUNG_PRODUKT_AG,
 )
 from ._helpers import success, error, login_required, role_required
 
@@ -86,20 +88,25 @@ def _op_to_dict(conn, op) -> dict:
     }
 
 
-# ── GET /api/orders/produkte  → Produktliste für Dropdown ────────────────────
+# ── GET /api/orders/produkte  → Produktliste + AG-Vorschau ──────────────────
 @orders_bp.route("/produkte", methods=["GET"])
 @login_required
 def get_produkte():
-    art = request.args.get("art")
+    art   = request.args.get("art")
+    menge = int(request.args.get("menge", 0) or 0)
     result = {}
     for artikel, info in PRODUKTE.items():
         if art and info["art"] != art:
             continue
+        fraes = get_fraes_solldauern(artikel, menge) if menge else {}
         result[artikel] = {
-            "art":               info["art"],
+            "art":                info["art"],
             "ceramaret_moeglich": info["ceramaret_moeglich"],
+            "fraes_solldauern":   fraes,
+            "ag_sequenz":         get_ag_sequenz_fuer_produkt(info["art"], artikel, False),
+            "ag_sequenz_ceramaret": get_ag_sequenz_fuer_produkt(info["art"], artikel, True),
+            "ausbringung_pro_ag":  AUSBRINGUNG_PRODUKT_AG.get(artikel, {1: AUSBRINGUNG_PRO_TAG, 2: AUSBRINGUNG_PRO_TAG, 3: AUSBRINGUNG_PRO_TAG}),
         }
-    # Sortiert zurückgeben
     return success(dict(sorted(result.items())))
 
 
@@ -192,7 +199,10 @@ def create_order_route():
             bemerkung          = data.get("bemerkung"),
         )
         endtermin = create_operations_for_order(
-            conn, order_id, art, pa_start_d, ceramaret=ceramaret_req
+            conn, order_id, art, pa_start_d,
+            ceramaret=ceramaret_req,
+            artikel=artikel,
+            menge=menge,
         )
         from backend.services.date_calc import calc_abweichung
         abw = calc_abweichung(endtermin, auslieferung)

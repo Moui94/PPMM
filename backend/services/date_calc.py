@@ -8,7 +8,10 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional
 
-from backend.constants import ARBEITSGAENGE, get_ag_sequenz, get_solldauer
+from backend.constants import (
+    ARBEITSGAENGE, get_ag_sequenz, get_solldauer,
+    get_fraes_solldauern, get_ag_sequenz_fuer_produkt,
+)
 
 
 @dataclass
@@ -51,33 +54,44 @@ def calc_ag_termine(
     pa_start: date,
     solldauern_override: Optional[dict] = None,
     ceramaret: bool = False,
+    artikel: str = "",
+    menge: int = 0,
 ) -> tuple[list[AgTermin], date]:
     """
-    Berechnet Start/Ende aller AGs eines Auftrags sequenziell.
+    Berechnet Start/Ende aller AGs sequenziell.
 
-    Args:
-        art:                 'A' oder 'I'
-        pa_start:            Startdatum des Auftrags
-        solldauern_override: {ag_nr: tage} überschreibt Stamm-Solldauern
-        ceramaret:           Wenn True → AG1 entfällt
-
-    Returns:
-        (liste von AgTermin, endtermin)
+    AG1–3: Solldauer = ceil(menge / 26 Stk/Tag), pro Produkt konfigurierbar.
+           Ist ein Fräs-AG für das Produkt nicht definiert, entfällt er.
+    Ceramaret: AG1 entfällt zusätzlich.
     """
-    sequenz    = get_ag_sequenz(art, ceramaret)
-    overrides  = solldauern_override or {}
-    termine    = []
-    current    = pa_start
+    # Effektive Sequenz (Fräs-AGs nur wenn im Produkt definiert)
+    if artikel:
+        sequenz = get_ag_sequenz_fuer_produkt(art, artikel, ceramaret)
+    else:
+        sequenz = get_ag_sequenz(art, ceramaret)
 
-    # Startdatum auf Arbeitstag schieben
+    # Solldauern für Fräs-AGs aus Menge berechnen
+    fraes_dauern = get_fraes_solldauern(artikel, menge) if artikel and menge else {}
+
+    overrides = solldauern_override or {}
+    termine   = []
+    current   = pa_start
+
     while current.weekday() >= 5:
         current += timedelta(days=1)
 
     for ag_nr in sequenz:
-        ag_info   = ARBEITSGAENGE.get(ag_nr, {})
-        solldauer = overrides.get(ag_nr, get_solldauer(ag_nr))
-        start     = current
-        ende      = add_workdays(start, solldauer)
+        ag_info = ARBEITSGAENGE.get(ag_nr, {})
+        if ag_nr in (1, 2, 3):
+            # Priorität: 1. manueller Override, 2. Mengenberechnung, 3. Stamm
+            solldauer = overrides.get(ag_nr,
+                        fraes_dauern.get(ag_nr,
+                        get_solldauer(ag_nr)))
+        else:
+            solldauer = overrides.get(ag_nr, get_solldauer(ag_nr))
+
+        start = current
+        ende  = add_workdays(start, solldauer)
         termine.append(AgTermin(
             ag_nr          = ag_nr,
             bezeichnung    = ag_info.get("bezeichnung", f"AG{ag_nr:02d}"),
@@ -85,7 +99,7 @@ def calc_ag_termine(
             start_soll     = start,
             ende_soll      = ende,
         ))
-        current = ende  # nächster AG startet wo vorheriger endet
+        current = ende
 
     endtermin = termine[-1].ende_soll if termine else pa_start
     return termine, endtermin

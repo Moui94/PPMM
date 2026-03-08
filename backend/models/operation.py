@@ -72,13 +72,18 @@ def create_operations_for_order(
     pa_start: date,
     ceramaret: bool = False,
     solldauern_override: Optional[dict] = None,
+    artikel: str = "",
+    menge: int = 0,
 ) -> date:
     """
     Legt alle Arbeitsgänge an. Bei ceramaret=True entfällt AG1.
     Gibt den Endtermin zurück.
     """
     from backend.services.date_calc import calc_ag_termine
-    termine, endtermin = calc_ag_termine(art, pa_start, solldauern_override, ceramaret)
+    termine, endtermin = calc_ag_termine(
+        art, pa_start, solldauern_override, ceramaret,
+        artikel=artikel, menge=menge,
+    )
     for t in termine:
         from backend.constants import get_ag_kapazitaet_config
         kap_cfg   = get_ag_kapazitaet_config(t.ag_nr)

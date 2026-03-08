@@ -41,7 +41,7 @@ const Api = {
       ).toString();
       return apiFetch("/orders" + (qs ? "?" + qs : ""));
     },
-    produkte: (art=null) => apiFetch("/orders/produkte" + (art ? `?art=${art}` : "")),
+    produkte: (art=null, menge=0) => apiFetch("/orders/produkte" + `?${art?"art="+art+"&":""}${menge?"menge="+menge:""}`),
     kpis:   () => apiFetch("/orders/kpis"),
     get:    (paNr) => apiFetch(`/orders/${paNr}`),
     create: (data) => apiFetch("/orders", { method: "POST", body: JSON.stringify(data) }),
