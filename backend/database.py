@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS orders (
     pa_nr               TEXT    UNIQUE NOT NULL,
     art                 TEXT    NOT NULL CHECK(art IN ('A','I')),
     artikel             TEXT    NOT NULL,
-    ceramaret           TEXT,
+    ceramaret           INTEGER NOT NULL DEFAULT 0,
     spezielles          TEXT,
     menge               INTEGER NOT NULL DEFAULT 0 CHECK(menge > 0),
     menge_produziert    INTEGER NOT NULL DEFAULT 0,
@@ -105,7 +105,6 @@ CREATE TABLE IF NOT EXISTS orders (
     status              TEXT    NOT NULL DEFAULT 'geplant'
                                 CHECK(status IN ('geplant','aktiv','abgeschlossen','archiviert')),
     pa_start            DATE,
-    haas_nr             TEXT,
     endtermin_soll      DATE,
     auslieferung_kunde  DATE,
     abweichung_tage     INTEGER NOT NULL DEFAULT 0,
