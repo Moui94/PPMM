@@ -39,8 +39,9 @@ def create_app(test_config=None):
     from backend.routes.quality    import quality_bp
     from backend.routes.users      import users_bp
     from backend.routes.export     import export_bp
+    from backend.routes.capacity   import capacity_bp
 
-    for bp in [auth_bp, orders_bp, operations_bp, quality_bp, users_bp, export_bp]:
+    for bp in [auth_bp, orders_bp, operations_bp, quality_bp, users_bp, export_bp, capacity_bp]:
         app.register_blueprint(bp)
 
     # ── SPA Catch-All: alle nicht-API Routen liefern index.html ─────────────

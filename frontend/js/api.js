@@ -9,7 +9,11 @@ async function apiFetch(path, options = {}) {
   const defaults = {
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
-  };
+    capacity: {
+    plan:  ()           => _get("/api/capacity/plan"),
+    apply: (data)       => _post("/api/capacity/apply", data),
+  },
+};
   const res = await fetch(API_BASE + path, { ...defaults, ...options });
   const json = await res.json().catch(() => ({ ok: false, error: "Ungültige Server-Antwort" }));
   if (!json.ok) throw new ApiError(json.error || "Unbekannter Fehler", res.status);
@@ -86,4 +90,10 @@ const Api = {
     toggle: (id) =>
       apiFetch(`/users/${id}/toggle`, { method: "PUT" }),
   },
+  // ── Capacity ──────────────────────────────────────────────────────────────
+  capacity: {
+    plan:  ()     => apiFetch("/capacity/plan"),
+    apply: (data) => apiFetch("/capacity/apply", { method: "POST", body: JSON.stringify(data) }),
+  },
+
 };

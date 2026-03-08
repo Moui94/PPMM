@@ -12,6 +12,7 @@ const ROUTES = {
   "op-edit":     (p) => renderOpEdit(p),
   "feedback":    (p) => renderFeedback(p),
   "schedule":    (p) => renderSchedule(p),
+  "haas-plan":   (p) => renderHaasKapazitaet(p),
   "quality":     (p) => renderQuality(p),
   "catalog":     (p) => renderCatalog(p),
   "users":       (p) => renderUsers(p),
