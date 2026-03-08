@@ -38,7 +38,7 @@ def _op_detail(conn, op) -> dict:
         "ende_soll_fmt":  fmt_date_ch(op["ende_soll"]),
         "start_ist":      str(op["start_ist"] or ""),
         "ende_ist":       str(op["ende_ist"]  or ""),
-        "maschine":       op["maschine"],
+        "maschine":       op["maschine"] or get_kapazitaet_fix(op["ag_nr"]) or "—",
         "kapazitaet":     op["kapazitaet"],
         "status":         op["status"],
         "bemerkung":      op["bemerkung"],

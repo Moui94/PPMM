@@ -32,8 +32,8 @@ async function renderOrder(params = {}) {
       <td class="text-center"><span class="badge bg-secondary">${op.solldauer_tage}T</span></td>
       <td>${op.start_soll_fmt}</td><td>${op.ende_soll_fmt}</td>
       <td>${esc(op.maschine||"—")}</td>
-      <td>${op.start_ist ? op.start_ist.substring(0,10) : "—"}</td>
-      <td>${op.ende_ist  ? op.ende_ist.substring(0,10)  : "—"}</td>
+      <td>${op.start_ist ? _isoToCH(op.start_ist) : "—"}</td>
+      <td>${op.ende_ist  ? _isoToCH(op.ende_ist)  : "—"}</td>
       <td>${fbHtml}</td>
       <td>
         <button class="btn btn-sm btn-outline-primary py-0"
@@ -237,15 +237,6 @@ async function renderOrderForm(order = null) {
                    value="${order?.auslieferung_kunde??''}" onchange="_updateLiefertermin()">
           </div>
 
-          <div class="col-md-2">
-            <label class="form-label fw-bold">Status</label>
-            <select id="f-status" class="form-select">
-              ${["geplant","aktiv","abgeschlossen","archiviert"].map(s =>
-                `<option value="${s}" ${(order?.status??'geplant')===s?"selected":""}>${cap(s)}</option>`
-              ).join("")}
-            </select>
-          </div>
-
           
 
           <div class="col-md-3">
@@ -403,6 +394,13 @@ function _formatDateCH(d) {
   return d.toLocaleDateString("de-CH", {day:"2-digit", month:"2-digit", year:"numeric"});
 }
 
+
+function _isoToCH(s) {
+  if (!s) return "—";
+  const d = s.substring(0, 10).split("-");
+  if (d.length !== 3) return s;
+  return `${d[2]}.${d[1]}.${d[0]}`;
+}
 function _updateLiefertermin() {
   const liefEl = document.getElementById("liefertermin-hinweis");
   if (!liefEl) return;
@@ -465,7 +463,7 @@ function _updateLiefertermin() {
   let hinweisExtra  = "";
   if (art === "I") {
     endterminLief = _addWorkdays(endterminLief, 10);
-    hinweisExtra  = ' <span class="text-muted">(+2 Wochen für Verpacken bei Früh)</span>';
+    hinweisExtra  = ' <span class="text-muted">(+2 Wochen für Implantat-Nachbearbeitung)</span>';
   }
 
   liefEl.innerHTML = `
@@ -474,7 +472,7 @@ function _updateLiefertermin() {
     ${hinweisExtra}
     <br><small class="text-muted">
       <i class="bi bi-info-circle me-1"></i>
-      Liefertermin Verpacken ${_formatDateCH(new Date(startVal))}
+      Datum inklusive Verpackung bei Frühstart ${_formatDateCH(new Date(startVal))}
     </small>`;
   liefEl.style.display = "block";
 }
