@@ -45,6 +45,8 @@ def _order_to_dict(conn, order) -> dict:
         "prioritaet":         order["prioritaet"],
         "status":             order["status"],
         "pa_start":           str(order["pa_start"] or "")[:10],
+        "pa_erfasst":         str(order["pa_erfasst"] or "")[:10],
+        "pa_erfasst_fmt":     fmt_date_ch(order["pa_erfasst"]),
         "pa_start_fmt":       fmt_date_ch(order["pa_start"]),
         "haas_nr":            order["haas_nr"],
         "endtermin_soll":     str(order["endtermin_soll"] or ""),

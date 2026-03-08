@@ -8,7 +8,7 @@ from backend.models.operation import (
     get_operation_by_id, update_operation,
     set_operation_status, get_last_menge_gut,
 )
-from backend.models.feedback import create_feedback, get_feedbacks_for_op, get_fehler_for_feedback
+from backend.models.feedback import upsert_feedback, get_feedbacks_for_op, get_fehler_for_feedback, get_latest_feedback
 from backend.models.order import update_order_endtermin
 from backend.services.date_calc import fmt_date_ch
 from backend.constants import (
@@ -62,11 +62,12 @@ def get_op(op_id):
     detail = _op_detail(conn, op)
     detail["vorgaenger_menge_gut"] = get_last_menge_gut(conn, op["order_id"], op["ag_nr"])
     # Letzte Rückmeldung für Vorbelegen des Formulars
-    feedbacks = get_feedbacks_for_op(conn, op["id"])
-    if feedbacks:
-        last = feedbacks[-1]
-        detail["menge_input"]     = last["menge_input"]
-        detail["menge_ausschuss"] = last["menge_ausschuss"]
+    last = get_latest_feedback(conn, op["id"])
+    if last:
+        detail["menge_input"]      = last["menge_input"]
+        detail["menge_ausschuss"]  = last["menge_ausschuss"]
+        detail["fb_bemerkung"]     = last["bemerkung"]
+        detail["feedback_id"]      = last["id"]
         try:
             detail["letzte_fehler"] = [
                 {"code": f["fehler_code"], "menge": f["menge"]}
@@ -114,7 +115,7 @@ def post_feedback(op_id):
     bemerkung = str(data.get("bemerkung", "") or "").strip() or None
     fehler    = data.get("fehler", [])
     try:
-        fb_id = create_feedback(
+        fb_id = upsert_feedback(
             conn, op_id=op_id, order_id=op["order_id"], ag_nr=op["ag_nr"],
             user_id=session["user_id"],
             menge_input=menge_input, menge_ausschuss=menge_ausschuss,

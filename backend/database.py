@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS orders (
     status              TEXT    NOT NULL DEFAULT 'geplant'
                                 CHECK(status IN ('geplant','aktiv','abgeschlossen','archiviert')),
     pa_start            DATE,
+    pa_erfasst          DATE,
     haas_nr             TEXT,
     endtermin_soll      DATE,
     auslieferung_kunde  DATE,

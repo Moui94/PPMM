@@ -61,12 +61,13 @@ def create_order(
     cur = conn.execute("""
         INSERT INTO orders
           (pa_nr, art, artikel, ceramaret, spezielles, menge, prioritaet,
-           status, pa_start, auslieferung_kunde, haas_nr, bemerkung)
-        VALUES (?,?,?,?,?,?,?,'geplant',?,?,?,?)
+           status, pa_start, pa_erfasst, auslieferung_kunde, haas_nr, bemerkung)
+        VALUES (?,?,?,?,?,?,?,'geplant',?,?,?,?,?)
     """, (
         pa_nr, art, artikel, ceramaret_int, spezielles or None,
         menge, prioritaet,
         pa_start_d.isoformat() if hasattr(pa_start_d, 'isoformat') else pa_start_d,
+        date.today().isoformat(),  # pa_erfasst = Erfassungsdatum
         auslieferung_kunde.isoformat() if auslieferung_kunde and hasattr(auslieferung_kunde, 'isoformat') else auslieferung_kunde,
         haas_nr or None,
         bemerkung or None,

@@ -71,6 +71,7 @@ async function renderOrder(params = {}) {
           ${detailItem("Artikel",         esc(order.artikel))}
           ${detailItem("Menge",           order.menge)}
           ${detailItem("PA-Start",        order.pa_start_fmt)}
+          ${detailItem("PA-Erfasst",      order.pa_erfasst_fmt || order.pa_erfasst || "—")}
           ${detailItem("Endtermin Soll",  `<strong>${order.endtermin_soll_fmt}</strong>`)}
           ${detailItem("Lieferung Kunde", order.auslieferung_fmt)}
           ${detailItem("Abweichung",      `<span class="${abwClass}">${abwStr}</span>`)}

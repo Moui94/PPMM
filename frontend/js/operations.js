@@ -198,19 +198,19 @@ async function renderFeedback(params = {}) {
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold">Start Ist</label>
-            <input type="datetime-local" id="fb-start_ist" class="form-control"
-                   value="${op.start_ist ? op.start_ist.substring(0,16) : ''}">
+            <input type="date" id="fb-start_ist" class="form-control"
+                   value="${op.start_ist ? op.start_ist.substring(0,10) : ''}">
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold">Ende Ist</label>
-            <input type="datetime-local" id="fb-ende_ist" class="form-control"
-                   value="${op.ende_ist ? op.ende_ist.substring(0,16) : ''}">
+            <input type="date" id="fb-ende_ist" class="form-control"
+                   value="${op.ende_ist ? op.ende_ist.substring(0,10) : ''}">
           </div>
           ${maschinenHtml}
           <div class="col-md-3">
             <label class="form-label fw-bold">Bemerkung</label>
             <input type="text" id="fb-bemerkung" class="form-control"
-                   value="${esc(op.bemerkung ?? '')}">
+                   value="${esc(op.fb_bemerkung ?? '')}">
           </div>
         </div>
         <div class="mt-3">
@@ -235,15 +235,18 @@ async function renderFeedback(params = {}) {
 
   // Bestehende Fehlercodes wiederherstellen
   if (op.letzte_fehler && op.letzte_fehler.length) {
-    op.letzte_fehler.forEach(() => addFehlerRow());
-    const rows = document.querySelectorAll(".fehler-row");
-    op.letzte_fehler.forEach((f, i) => {
-      if (!rows[i]) return;
-      const sel = rows[i].querySelector(".fehler-code");
-      const inp = rows[i].querySelector(".fehler-menge");
+    op.letzte_fehler.forEach(f => {
+      addFehlerRow();
+      // Row wurde soeben ans DOM angehängt — letztes Element nehmen
+      const allRows = document.querySelectorAll(".fehler-row");
+      const row = allRows[allRows.length - 1];
+      if (!row) return;
+      const sel = row.querySelector(".fehler-code");
+      const inp = row.querySelector(".fehler-menge");
       if (sel) sel.value = f.code;
       if (inp) inp.value = f.menge;
     });
+    calcMengen(); // Fehlersumme nach Wiederherstellung aktualisieren
   }
 }
 

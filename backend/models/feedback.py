@@ -118,6 +118,86 @@ def create_feedback(
     return feedback_id
 
 
+
+def upsert_feedback(
+    conn: sqlite3.Connection,
+    op_id: int,
+    order_id: int,
+    ag_nr: int,
+    user_id: int,
+    menge_input: int,
+    menge_ausschuss: int,
+    start_ist=None,
+    ende_ist=None,
+    maschine=None,
+    bemerkung=None,
+    fehler=None,
+) -> int:
+    """
+    Legt eine Rückmeldung an oder aktualisiert die bestehende (1 pro AG).
+    Gibt die feedback_id zurück.
+    """
+    if menge_input <= 0:
+        raise ValueError("menge_input muss > 0 sein.")
+    if menge_ausschuss < 0 or menge_ausschuss > menge_input:
+        raise ValueError("Ungültige Ausschuss-Menge.")
+
+    menge_gut = menge_input - menge_ausschuss
+
+    existing = conn.execute(
+        "SELECT id FROM op_feedbacks WHERE op_id = ? LIMIT 1", (op_id,)
+    ).fetchone()
+
+    if existing:
+        feedback_id = existing["id"]
+        conn.execute("""
+            UPDATE op_feedbacks SET
+              menge_input=?, menge_gut=?, menge_ausschuss=?,
+              start_ist=?, ende_ist=?, maschine=?, bemerkung=?,
+              user_id=?
+            WHERE id=?
+        """, (
+            menge_input, menge_gut, menge_ausschuss,
+            start_ist, ende_ist, maschine, bemerkung,
+            user_id, feedback_id,
+        ))
+        # Fehlercodes ersetzen
+        conn.execute("DELETE FROM defect_entries WHERE feedback_id=?", (feedback_id,))
+    else:
+        cur = conn.execute("""
+            INSERT INTO op_feedbacks
+              (op_id, order_id, ag_nr, user_id,
+               menge_input, menge_gut, menge_ausschuss,
+               start_ist, ende_ist, maschine, bemerkung)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            op_id, order_id, ag_nr, user_id,
+            menge_input, menge_gut, menge_ausschuss,
+            start_ist, ende_ist, maschine, bemerkung,
+        ))
+        feedback_id = cur.lastrowid
+
+    for f in (fehler or []):
+        code  = f.get("code", "").strip()
+        menge = int(f.get("menge", 1))
+        if not code or menge <= 0:
+            continue
+        fehler_info = FEHLERKATALOG.get(code, {})
+        conn.execute("""
+            INSERT INTO defect_entries
+              (feedback_id, order_id, ag_nr,
+               fehler_code, fehler_bezeichnung, fehler_kategorie, menge)
+            VALUES (?,?,?,?,?,?,?)
+        """, (
+            feedback_id, order_id, ag_nr,
+            code,
+            fehler_info.get("bezeichnung", code),
+            fehler_info.get("kategorie", "S"),
+            menge,
+        ))
+
+    return feedback_id
+
 # ──────────────────────────────────────────────────────────────────────────────
 # QUALITÄTS-AUSWERTUNGEN
 # ──────────────────────────────────────────────────────────────────────────────
@@ -182,7 +262,7 @@ def get_pareto_fehler(
 
 def get_fehler_for_feedback(conn, feedback_id: int) -> list:
     rows = conn.execute(
-        "SELECT fehler_code, menge FROM feedback_fehler WHERE feedback_id = ? ORDER BY id",
+        "SELECT fehler_code, menge FROM defect_entries WHERE feedback_id = ? ORDER BY id",
         (feedback_id,)
     ).fetchall()
     return [dict(r) for r in rows]
