@@ -1,3 +1,4 @@
+function _isoToCH(s){if(!s)return "—";const d=s.substring(0,10).split("-");return d.length===3?`${d[2]}.${d[1]}.${d[0]}`:s;}
 /**
  * app.js – SPA-Router, Hilfsfunktionen, Initialisierung.
  */
@@ -48,7 +49,7 @@ async function renderUsers() {
       <td><strong>${esc(u.username)}</strong></td>
       <td><span class="badge bg-primary">${u.rolle}</span></td>
       <td><span class="badge bg-${u.aktiv?'success':'secondary'}">${u.aktiv?'Aktiv':'Inaktiv'}</span></td>
-      <td>${(u.created_at||"").substring(0,10)}</td>
+      <td>${_isoToCH(u.created_at||"")}</td>
       <td>
         <button class="btn btn-sm btn-outline-warning py-0 ms-1"
           onclick="toggleUser(${u.id},'${esc(u.username)}')">

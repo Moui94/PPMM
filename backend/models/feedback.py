@@ -178,3 +178,11 @@ def get_pareto_fehler(
         }
         for r in rows
     ]
+
+
+def get_fehler_for_feedback(conn, feedback_id: int) -> list:
+    rows = conn.execute(
+        "SELECT fehler_code, menge FROM feedback_fehler WHERE feedback_id = ? ORDER BY id",
+        (feedback_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]

@@ -119,7 +119,7 @@ async function renderFeedback(params = {}) {
     catalog = await Api.quality.catalog(op.ag_nr);
   } catch (e) { el.innerHTML = alertHtml(e.message); return; }
 
-  const mengeVorschlag = op.vorgaenger_menge_gut ?? op.auftrag_menge ?? 0;
+  const mengeVorschlag = op.menge_input ?? op.vorgaenger_menge_gut ?? op.auftrag_menge ?? 0;
   const vorschlagHinweis = op.vorgaenger_menge_gut != null
     ? `<small class="text-success ms-1">
          <i class="bi bi-arrow-left-circle"></i> übernommen von Vorgänger-AG (${op.vorgaenger_menge_gut} Stk.)</small>`
@@ -186,7 +186,7 @@ async function renderFeedback(params = {}) {
           <div class="col-md-2">
             <label class="form-label fw-bold">Ausschuss</label>
             <input type="number" id="fb-ausschuss" class="form-control"
-                   value="0" min="0" oninput="calcMengen()">
+                   value="${op.menge_ausschuss ?? 0}" min="0" oninput="calcMengen()">
           </div>
           <div class="col-md-2">
             <label class="form-label fw-bold">Gut-Menge</label>
@@ -198,21 +198,25 @@ async function renderFeedback(params = {}) {
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold">Start Ist</label>
-            <input type="datetime-local" id="fb-start_ist" class="form-control">
+            <input type="datetime-local" id="fb-start_ist" class="form-control"
+                   value="${op.start_ist ? op.start_ist.substring(0,16) : ''}">
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold">Ende Ist</label>
-            <input type="datetime-local" id="fb-ende_ist" class="form-control">
+            <input type="datetime-local" id="fb-ende_ist" class="form-control"
+                   value="${op.ende_ist ? op.ende_ist.substring(0,16) : ''}">
           </div>
           ${maschinenHtml}
           <div class="col-md-3">
             <label class="form-label fw-bold">Bemerkung</label>
-            <input type="text" id="fb-bemerkung" class="form-control">
+            <input type="text" id="fb-bemerkung" class="form-control"
+                   value="${esc(op.bemerkung ?? '')}">
           </div>
         </div>
         <div class="mt-3">
           <label class="form-label fw-bold">Fehlercodes (bei Ausschuss > 0)</label>
           <div id="fehler-liste"></div>
+          <div id="fb-fehler-summe" class="alert alert-secondary py-1 small mt-2 d-none"></div>
           <button class="btn btn-sm btn-outline-secondary mt-1" onclick="addFehlerRow()">
             <i class="bi bi-plus me-1"></i>Fehlercode hinzufügen</button>
         </div>
@@ -228,15 +232,49 @@ async function renderFeedback(params = {}) {
 
   window._currentCatalog = catalog;
   calcMengen();
+
+  // Bestehende Fehlercodes wiederherstellen
+  if (op.letzte_fehler && op.letzte_fehler.length) {
+    op.letzte_fehler.forEach(() => addFehlerRow());
+    const rows = document.querySelectorAll(".fehler-row");
+    op.letzte_fehler.forEach((f, i) => {
+      if (!rows[i]) return;
+      const sel = rows[i].querySelector(".fehler-code");
+      const inp = rows[i].querySelector(".fehler-menge");
+      if (sel) sel.value = f.code;
+      if (inp) inp.value = f.menge;
+    });
+  }
 }
 
 function calcMengen() {
-  const inp = parseInt(document.getElementById("fb-input")?.value)     || 0;
-  const aus = parseInt(document.getElementById("fb-ausschuss")?.value) || 0;
-  const gut = Math.max(0, inp - aus);
-  const gutEl = document.getElementById("fb-gut");
-  const chk   = document.getElementById("fb-check");
+  const inp    = parseInt(document.getElementById("fb-input")?.value)     || 0;
+  const aus    = parseInt(document.getElementById("fb-ausschuss")?.value) || 0;
+  const gut    = Math.max(0, inp - aus);
+  const gutEl  = document.getElementById("fb-gut");
+  const chk    = document.getElementById("fb-check");
+  const fehSum = document.getElementById("fb-fehler-summe");
+
   if (gutEl) gutEl.value = gut;
+
+  // Fehlersumme berechnen
+  const fehlerMengen = [...document.querySelectorAll(".fehler-menge")]
+    .map(i => parseInt(i.value) || 0);
+  const fehlerTotal = fehlerMengen.reduce((a, b) => a + b, 0);
+
+  // Fehlersummen-Anzeige
+  if (fehSum) {
+    if (aus === 0) {
+      fehSum.className = "alert alert-secondary py-1 small mt-2 d-none";
+    } else if (fehlerTotal === aus) {
+      fehSum.className = "alert alert-success py-1 small mt-2";
+      fehSum.innerHTML = `<i class="bi bi-check-circle me-1"></i>Fehlercodes: ${fehlerTotal} = Ausschuss: ${aus} ✓`;
+    } else {
+      fehSum.className = "alert alert-danger py-1 small mt-2";
+      fehSum.innerHTML = `<i class="bi bi-x-circle me-1"></i>Fehlercodes: ${fehlerTotal} ≠ Ausschuss: ${aus} — bitte anpassen`;
+    }
+  }
+
   if (!chk) return;
   if (inp > 0 && (gut + aus) !== inp) {
     chk.style.background = "#f8d7da";
@@ -246,6 +284,7 @@ function calcMengen() {
     chk.textContent = `✅ Gut: ${gut}  Ausschuss: ${aus}`;
   }
 }
+
 
 function addFehlerRow() {
   const catalog  = window._currentCatalog || {};
@@ -259,7 +298,7 @@ function addFehlerRow() {
       <option value="">— Fehler wählen —</option>${options}
     </select>
     <input type="number" class="form-control form-control-sm fehler-menge"
-           value="1" min="1" style="max-width:80px">
+           value="1" min="1" style="max-width:80px" oninput="calcMengen()">
     <button class="btn btn-sm btn-outline-danger py-0"
             onclick="this.parentElement.remove()">
       <i class="bi bi-trash"></i></button>`;
@@ -279,6 +318,18 @@ async function saveFeedback(opId, paNr, isFraesAg) {
     maschine  = sel?.value || null;
   } else {
     maschine = document.getElementById("fb-maschine")?.value.trim() || null;
+  }
+
+  // Validierung: Fehlercodes müssen Ausschuss abdecken
+  const ausVal = parseInt(document.getElementById("fb-ausschuss")?.value) || 0;
+  const fehlerSumme = [...document.querySelectorAll(".fehler-menge")]
+    .map(i => parseInt(i.value) || 0).reduce((a, b) => a + b, 0);
+  if (ausVal > 0 && fehlerSumme !== ausVal) {
+    const alertEl = document.getElementById("fb-alert");
+    alertEl.className = "alert alert-danger py-2";
+    alertEl.textContent = `Fehlercodes (${fehlerSumme}) müssen mit Ausschuss (${ausVal}) übereinstimmen.`;
+    btn.disabled = false;
+    return;
   }
 
   const fehler = [...document.querySelectorAll(".fehler-row")]

@@ -8,7 +8,7 @@ from backend.models.operation import (
     get_operation_by_id, update_operation,
     set_operation_status, get_last_menge_gut,
 )
-from backend.models.feedback import create_feedback, get_feedbacks_for_op
+from backend.models.feedback import create_feedback, get_feedbacks_for_op, get_fehler_for_feedback
 from backend.models.order import update_order_endtermin
 from backend.services.date_calc import fmt_date_ch
 from backend.constants import (
@@ -61,6 +61,19 @@ def get_op(op_id):
     if not op: return error(f"Arbeitsgang {op_id} nicht gefunden.", 404)
     detail = _op_detail(conn, op)
     detail["vorgaenger_menge_gut"] = get_last_menge_gut(conn, op["order_id"], op["ag_nr"])
+    # Letzte Rückmeldung für Vorbelegen des Formulars
+    feedbacks = get_feedbacks_for_op(conn, op["id"])
+    if feedbacks:
+        last = feedbacks[-1]
+        detail["menge_input"]     = last["menge_input"]
+        detail["menge_ausschuss"] = last["menge_ausschuss"]
+        try:
+            detail["letzte_fehler"] = [
+                {"code": f["fehler_code"], "menge": f["menge"]}
+                for f in get_fehler_for_feedback(conn, last["id"])
+            ]
+        except Exception:
+            detail["letzte_fehler"] = []
     return success(detail)
 
 
