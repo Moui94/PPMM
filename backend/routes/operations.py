@@ -89,7 +89,8 @@ def update_op(op_id):
     order_row = conn.execute(
         "SELECT status FROM orders WHERE id = ?", (op["order_id"],)
     ).fetchone()
-    if not order_row or order_row["status"] != "aktiv":
+    user_rolle = session.get("rolle", "ma")
+    if user_rolle == "ma" and (not order_row or order_row["status"] != "aktiv"):
         return error("Rückmeldung nur möglich wenn Auftrag aktiv ist.", 403)
     data = request.get_json(silent=True) or {}
     EDITABLE = {"solldauer_tage","start_soll","ende_soll","maschine","kapazitaet","status","bemerkung"}
@@ -116,7 +117,8 @@ def post_feedback(op_id):
     order_row = conn.execute(
         "SELECT status FROM orders WHERE id = ?", (op["order_id"],)
     ).fetchone()
-    if not order_row or order_row["status"] != "aktiv":
+    user_rolle = session.get("rolle", "ma")
+    if user_rolle == "ma" and (not order_row or order_row["status"] != "aktiv"):
         return error("Rückmeldung nur möglich wenn Auftrag aktiv ist.", 403)
     data = request.get_json(silent=True) or {}
     try:

@@ -78,9 +78,17 @@ async function renderOrder(params = {}) {
           ${detailItem("PA-Start",        order.pa_start_fmt)}
           ${detailItem("PA-Erfasst",      order.pa_erfasst_fmt || order.pa_erfasst || "—")}
           ${detailItem("Endtermin Soll",  `<strong>${order.endtermin_soll_fmt}</strong>`)}
-          ${detailItem("Endtermin Ist",   order.endtermin_ist && order.endtermin_ist !== "—"
-            ? `<strong class="text-${order.endtermin_ist > order.endtermin_soll_fmt ? 'danger' : 'success'}">${order.endtermin_ist}</strong>`
-            : `<span class="text-muted">—</span>`)}
+          ${detailItem("Endtermin Ist",
+            order.endtermin_ist && order.endtermin_ist !== "—"
+              ? `<strong>${order.endtermin_ist}</strong>` : `<span class="text-muted">—</span>`)}
+          ${detailItem("Abw. Plan/Ist",
+            order.abw_soll_ist_tage == null ? `<span class="text-muted">—</span>` :
+            `<span class="badge bg-${order.abw_soll_ist_tage > 0 ? 'danger' : order.abw_soll_ist_tage < 0 ? 'success' : 'success'}">
+              ${order.abw_soll_ist_label}</span>`)}
+          ${detailItem("Abw. Kunde/Ist",
+            order.abw_kunde_ist_tage == null ? `<span class="text-muted">—</span>` :
+            `<span class="badge bg-${order.abw_kunde_ist_tage > 0 ? 'danger' : order.abw_kunde_ist_tage < 0 ? 'success' : 'success'}">
+              ${order.abw_kunde_ist_label}</span>`)}
           ${detailItem("Lieferung Kunde", order.auslieferung_fmt)}
           ${detailItem("Abweichung",      `<span class="${abwClass}">${abwStr}</span>`)}
 
@@ -535,6 +543,10 @@ async function saveOrder(mode) {
       showToast(`Auftrag ${data.pa_nr} erfolgreich angelegt.`, "success");
       navigate("order", { paNr: data.pa_nr });
     } else {
+      // Status + PA-Start beim Bearbeiten mitsenden
+      data.status = document.getElementById("f-status")?.value || null;
+      const _paStart = document.getElementById("f-pa_start")?.value || null;
+      if (_paStart) data.pa_start = _paStart;
       await Api.orders.update(mode, data);
       showToast(`Auftrag ${mode} gespeichert.`, "success");
       navigate("order", { paNr: mode });

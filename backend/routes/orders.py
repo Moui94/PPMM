@@ -1,10 +1,40 @@
-def _calc_endtermin_ist_for_order(conn, order_id: int) -> str:
-    """Berechnet endtermin_ist aus Ist-Daten der AGs."""
+
+def _build_ist_fields(conn, order) -> dict:
+    from backend.services.date_calc import parse_date_safe, diff_workdays, fmt_date_ch
+    ist_fmt, ist_d = _calc_endtermin_ist_for_order(conn, order["id"])
+    soll_d  = parse_date_safe(str(order["endtermin_soll"] or ""))
+    kunde_d = parse_date_safe(str(order["auslieferung_kunde"] or ""))
+
+    def abw(von, bis):
+        """Positiv = Verzug, Negativ = früher."""
+        if not von or not bis: return None
+        return diff_workdays(von, bis)
+
+    abw_soll_ist  = abw(soll_d,  ist_d)
+    abw_kunde_ist = abw(kunde_d, ist_d)
+
+    def abw_label(tage):
+        if tage is None: return "—"
+        if tage == 0:    return "✓ pünktlich"
+        sign = "+" if tage > 0 else ""
+        return f"{sign}{tage} AT"
+
+    return {
+        "endtermin_ist":          ist_fmt,
+        "abw_soll_ist_tage":      abw_soll_ist,
+        "abw_soll_ist_label":     abw_label(abw_soll_ist),
+        "abw_kunde_ist_tage":     abw_kunde_ist,
+        "abw_kunde_ist_label":    abw_label(abw_kunde_ist),
+    }
+
+
+def _calc_endtermin_ist_for_order(conn, order_id: int) -> tuple:
+    """Berechnet endtermin_ist. Gibt (fmt_string, date_or_None) zurück."""
     from backend.models.operation import get_operations
     from backend.services.date_calc import calc_endtermin_ist, fmt_date_ch as _fmt
     ops = [dict(op) for op in get_operations(conn, order_id)]
     d = calc_endtermin_ist(ops)
-    return _fmt(d) if d else "—"
+    return (_fmt(d) if d else "—", d)
 
 
 """
@@ -61,7 +91,7 @@ def _order_to_dict(conn, order) -> dict:
         "haas_nr":            order["haas_nr"],
         "endtermin_soll":     str(order["endtermin_soll"] or ""),
         "endtermin_soll_fmt": fmt_date_ch(order["endtermin_soll"]),
-        "endtermin_ist":      _calc_endtermin_ist_for_order(conn, order["id"]),
+        **_build_ist_fields(conn, order),
         "auslieferung_kunde": str(order["auslieferung_kunde"] or ""),
         "auslieferung_fmt":   fmt_date_ch(order["auslieferung_kunde"]),
         "abweichung_tage":    abw,
@@ -242,7 +272,7 @@ def update_order_route(pa_nr):
     data = request.get_json(silent=True) or {}
     EDITABLE = {
         "artikel","spezielles","menge","prioritaet","status",
-        "auslieferung_kunde","haas_nr","bemerkung","bestaetigung_kunde",
+        "auslieferung_kunde","haas_nr","bemerkung","bestaetigung_kunde","pa_start",
     }
     fields = {k: v for k, v in data.items() if k in EDITABLE}
     if "menge" in fields:
@@ -253,14 +283,14 @@ def update_order_route(pa_nr):
         except: return error("prioritaet muss 1, 2 oder 3 sein.", 400)
     try:
         pa_start_new = None
-        if "pa_start" in data and data["pa_start"]:
-            pa_start_new = parse_date_safe(data["pa_start"])
-            if pa_start_new:
-                fields["pa_start"] = pa_start_new.isoformat()
-        update_order(conn, order["id"], **fields)
+        if "pa_start" in fields and fields["pa_start"]:
+            pa_start_new = parse_date_safe(str(fields["pa_start"]))
+            fields["pa_start"] = pa_start_new.isoformat() if pa_start_new else None
+        update_order(conn, order["id"], **{k:v for k,v in fields.items() if v is not None})
         auslieferung = parse_date_safe(data.get("auslieferung_kunde"))
-        # Wenn Status auf aktiv und pa_start gesetzt → Solldaten neu berechnen
-        if fields.get("status") == "aktiv" and pa_start_new:
+        # Solldaten neu berechnen wenn aktiv (neu oder bereits) und pa_start gesetzt
+        order_status_new = fields.get("status") or order["status"]
+        if pa_start_new and order_status_new == "aktiv":
             endtermin = recalc_operations_for_order(
                 conn, order["id"],
                 art      = order["art"],
@@ -269,12 +299,18 @@ def update_order_route(pa_nr):
                 artikel  = order["artikel"],
                 menge    = order["menge"],
             )
+            from backend.services.date_calc import calc_abweichung
+            # Endtermin Soll + Abweichung aktualisieren
+            if not auslieferung:
+                row = conn.execute(
+                    "SELECT auslieferung_kunde FROM orders WHERE id=?", (order["id"],)
+                ).fetchone()
+                if row and row["auslieferung_kunde"]:
+                    auslieferung = parse_date_safe(str(row["auslieferung_kunde"]))
+            abw = calc_abweichung(endtermin, auslieferung) if auslieferung else 0
             update_order(conn, order["id"],
-                         endtermin_soll=endtermin.isoformat())
-            if auslieferung:
-                from backend.services.date_calc import calc_abweichung
-                update_order(conn, order["id"],
-                             abweichung_tage=calc_abweichung(endtermin, auslieferung))
+                         endtermin_soll=endtermin.isoformat(),
+                         abweichung_tage=abw)
         else:
             update_order_endtermin(conn, order["id"], auslieferung)
         conn.commit()

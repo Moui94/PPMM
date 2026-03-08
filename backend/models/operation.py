@@ -177,8 +177,21 @@ def recalc_operations_for_order(
         from backend.services.date_calc import parse_date_safe
         pa_start = parse_date_safe(pa_start) or _date.today()
 
+    from backend.services.date_calc import add_workdays
+    # Bestehende AGs + Solldauern aus DB laden
+    existing_ops = conn.execute("""
+        SELECT ag_nr, solldauer_tage FROM order_operations
+        WHERE order_id = ? ORDER BY ag_nr
+    """, (order_id,)).fetchall()
+
+    if not existing_ops:
+        return pa_start  # Keine AGs vorhanden
+
+    # Solldauern-Override aus DB-Werten bauen
+    solldauern_override = {op["ag_nr"]: op["solldauer_tage"] for op in existing_ops}
+
     termine, endtermin = calc_ag_termine(
-        art, pa_start, None, ceramaret,
+        art, pa_start, solldauern_override, ceramaret,
         artikel=artikel, menge=menge,
     )
     for t in termine:

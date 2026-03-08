@@ -42,7 +42,6 @@ async function renderDashboard(params = {}) {
       <td class="text-center"><span class="badge badge-prio-${o.prioritaet} text-white">P${o.prioritaet}</span></td>
       <td>${o.endtermin_soll_fmt}</td>
       <td>${o.auslieferung_fmt}</td>
-      <td class="text-center ${abwClass}">${abwStr}</td>
       <td>${progBar}</td>
       <td><span class="badge bg-${STATUS_BADGE[o.status]??'secondary'}">${o.status}</span></td>
       <td>
@@ -116,7 +115,7 @@ async function renderDashboard(params = {}) {
                 <th>PA-Nr</th><th>Typ</th><th>Artikel</th>
                 <th class="text-center">Menge</th><th class="text-center">Prio</th>
                 <th>Endtermin Soll</th><th>Lieferung Kunde</th>
-                <th class="text-center">Abw.</th><th>Fortschritt</th>
+                <th>Fortschritt</th>
                 <th>Status</th><th></th>
               </tr>
             </thead>
