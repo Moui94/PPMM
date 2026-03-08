@@ -306,3 +306,6 @@ async function saveFeedback(opId, paNr, isFraesAg) {
     btn.disabled = false;
   }
 }
+
+window.renderOpEdit = renderOpEdit;
+window.renderFeedback = renderFeedback;

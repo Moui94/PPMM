@@ -143,3 +143,5 @@ function kpiCard(value, label, color) {
       <div class="text-muted small">${label}</div>
     </div></div>`;
 }
+
+window.renderDashboard = renderDashboard;

@@ -115,3 +115,5 @@ async function renderCatalog() {
       H = Handling &nbsp;|&nbsp; Q = Qualität &nbsp;|&nbsp; S = Sonstiges
     </div>`;
 }
+
+window.renderQuality = renderQuality;

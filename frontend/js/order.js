@@ -110,14 +110,14 @@ function detailItem(label, value) {
 }
 
 // ── Neuer Auftrag ─────────────────────────────────────────────────────────────
-function renderOrderNew() { renderOrderForm(null); }
+async function renderOrderNew() { await renderOrderForm(null); }
 
 async function renderOrderEdit(params = {}) {
   const el = document.getElementById("app-content");
   el.innerHTML = loadingHtml();
   try {
     const order = await Api.orders.get(params.paNr);
-    renderOrderForm(order);
+    await renderOrderForm(order);
   } catch (e) { el.innerHTML = alertHtml(e.message); }
 }
 
@@ -228,13 +228,13 @@ async function renderOrderForm(order = null) {
           ${isNew ? `
           <div class="col-md-3">
             <label class="form-label fw-bold">PA-Start</label>
-            <input type="date" id="f-pa_start" class="form-control">
+            <input type="date" id="f-pa_start" class="form-control" onchange="_updateLiefertermin()">
           </div>` : ""}
 
           <div class="col-md-3">
             <label class="form-label fw-bold">Auslieferung Kunde</label>
             <input type="date" id="f-auslieferung_kunde" class="form-control"
-                   value="${order?.auslieferung_kunde??''}">
+                   value="${order?.auslieferung_kunde??''}" onchange="_updateLiefertermin()">
           </div>
 
           <div class="col-md-2">
@@ -264,7 +264,8 @@ async function renderOrderForm(order = null) {
         <div id="ag-vorschau" class="alert alert-info mt-3 small" style="display:none">
           <strong><i class="bi bi-list-check me-1"></i>AG-Vorschau:</strong>
           <span id="ag-vorschau-text"></span>
-        </div>` : ""}
+        </div>
+        <div id="liefertermin-hinweis" class="alert alert-success py-2 small mt-1" style="display:none;"></div>` : ""}
 
         <div class="d-flex gap-2 mt-3">
           <button class="btn btn-primary" id="save-btn"
@@ -275,7 +276,10 @@ async function renderOrderForm(order = null) {
             Abbrechen</button>
         </div>
       </div>
-    </div>`;
+    </div>`
+
+  // Vorschau + Liefertermin nach DOM-Render
+  setTimeout(() => { updateAgVorschau(); _updateLiefertermin(); }, 0);
 
   // Initiale Sichtbarkeit anpassen
   if (isNew) {
@@ -403,16 +407,28 @@ function _updateLiefertermin() {
   const liefEl = document.getElementById("liefertermin-hinweis");
   if (!liefEl) return;
 
-  const startVal = document.getElementById("f-start_datum")?.value;
+  const startRaw = document.getElementById("f-pa_start")?.value;
   const art      = document.getElementById("f-art")?.value;
   const artikel  = document.getElementById("f-artikel")?.value;
   const menge    = parseInt(document.getElementById("f-menge")?.value) || 0;
 
-  if (!startVal || !artikel || !menge) {
+  if (!artikel || !menge) {
     liefEl.style.display = "none";
     return;
   }
 
+  // Fallback: wenn kein PA-Start → heute
+  const startVal = startRaw || new Date().toISOString().split("T")[0];
+
+  // Cache nachladen falls nötig (zB beim ersten Aufruf mit menge=0)
+  if (!window._produkteCache?.[artikel]?.ausbringung_pro_ag) {
+    Api.orders.produkte(null, menge).then(p => {
+      window._produkteCache = p;
+      _updateLiefertermin();
+    }).catch(() => {});
+    liefEl.style.display = "none";
+    return;
+  }
   const pInfo = window._produkteCache?.[artikel];
   if (!pInfo) { liefEl.style.display = "none"; return; }
 
@@ -449,7 +465,7 @@ function _updateLiefertermin() {
   let hinweisExtra  = "";
   if (art === "I") {
     endterminLief = _addWorkdays(endterminLief, 10);
-    hinweisExtra  = ' <span class="text-muted">(+2 Wochen für Implantat-Nachbearbeitung)</span>';
+    hinweisExtra  = ' <span class="text-muted">(+2 Wochen für Verpacken bei Früh)</span>';
   }
 
   liefEl.innerHTML = `
@@ -458,7 +474,7 @@ function _updateLiefertermin() {
     ${hinweisExtra}
     <br><small class="text-muted">
       <i class="bi bi-info-circle me-1"></i>
-      Datum inklusive Verpackung bei Frühstart ${_formatDateCH(new Date(startVal))}
+      Liefertermin Verpacken ${_formatDateCH(new Date(startVal))}
     </small>`;
   liefEl.style.display = "block";
 }
@@ -500,3 +516,14 @@ async function saveOrder(mode) {
     btn.disabled = false;
   }
 }
+
+// Globale Exports — sicherstellen dass alle Funktionen im window-Scope sind
+window.renderOrder       = renderOrder;
+window.renderOrderNew    = renderOrderNew;
+window.renderOrderEdit   = renderOrderEdit;
+window.onArtChange       = onArtChange;
+window.onArtikelChange   = onArtikelChange;
+window.onCameraretChange = onCameraretChange;
+window.updateAgVorschau  = updateAgVorschau;
+window.saveOrder         = saveOrder;
+window._updateLiefertermin = _updateLiefertermin;

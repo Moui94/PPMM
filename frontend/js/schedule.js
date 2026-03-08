@@ -113,3 +113,5 @@ function startScheduleCountdown(agNr) {
     }
   }, 1000);
 }
+
+window.renderSchedule = renderSchedule;

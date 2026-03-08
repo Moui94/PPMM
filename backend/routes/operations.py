@@ -43,8 +43,7 @@ def _op_detail(conn, op) -> dict:
         "status":         op["status"],
         "bemerkung":      op["bemerkung"],
         "auftrag_menge":  op["auftrag_menge"],
-        "ceramaret": conn.execute(
-            "SELECT ceramaret FROM orders WHERE id=?", (op["order_id"],)).fetchone()[0] or 0,
+        "ceramaret":      conn.execute("SELECT ceramaret FROM orders WHERE id=?", (op["order_id"],)).fetchone()[0] or 0,
         # Kapazitäts-Konfiguration
         "ist_fraes_ag":         fraes,
         "kap_typ":              kap_cfg.get("typ"),
